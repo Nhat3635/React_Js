@@ -1,13 +1,18 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
-
+import App from './App.jsx';
+import reportWebVitals from './reportWebVitals.js';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    {/* Provider chứa hook context */}
+    {/* LÀ store lưu trữ  dữ liệu của router*/}
+    {/* tất cả thành phần con bên trong đều truy cập đưuọc */}
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
   </React.StrictMode>
 );
 
