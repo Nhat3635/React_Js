@@ -1,7 +1,37 @@
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 const AdminSettings = () => {
     const [activeTab, setActiveTab] = useState('general');
+
+    const {
+        register,
+        handleSubmit,
+        watch,
+        formState: { errors },
+    } = useForm({
+        defaultValues: {
+            storeName: 'SmartLiving Furniture Store',
+            contactEmail: 'support@smartliving.com',
+            contactPhone: '0901 234 567',
+            shippingFee: '35.000',
+            vat: '8',
+            currentPassword: '',
+            newPassword: '',
+        },
+    });
+
+    const onSaveGeneral = (data) => {
+        console.log('General settings:', data);
+    };
+
+    const onSaveShipping = (data) => {
+        console.log('Shipping settings:', data);
+    };
+
+    const onUpdatePassword = (data) => {
+        console.log('Security settings:', data);
+    };
 
     const menuItems = [
         { id: 'general', name: 'Cài đặt chung', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg> },
@@ -39,28 +69,70 @@ const AdminSettings = () => {
                 {/* Right: Content Area */}
                 <div className="lg:col-span-3">
                     {activeTab === 'general' && (
-                        <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8">
+                        <form className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8" onSubmit={handleSubmit(onSaveGeneral)}>
                             <div className="flex justify-between items-center">
                                 <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                                     <span className="w-2 h-8 bg-brandOrange rounded-full"></span>
                                     Cài đặt chung
                                 </h2>
-                                <button className="px-6 py-2.5 bg-brandOrange text-white rounded-xl text-xs font-bold shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
+                                <button type="submit" className="px-6 py-2.5 bg-brandOrange text-white rounded-xl text-xs font-bold shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
                                     Lưu thay đổi
                                 </button>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Tên cửa hàng</label>
-                                    <input type="text" defaultValue="SmartLiving Furniture Store" className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner" />
+                                    <input
+                                        type="text"
+                                        {...register('storeName', {
+                                            required: {
+                                                value: true,
+                                                message: 'Tên cửa hàng không được để trống',
+                                            },
+                                            minLength: {
+                                                value: 3,
+                                                message: 'Tên cửa hàng phải có ít nhất 3 ký tự',
+                                            },
+                                        })}
+                                        className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner"
+                                    />
+                                    {errors.storeName && <small className="text-red-500 text-sm">{errors.storeName.message}</small>}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Email liên hệ</label>
-                                    <input type="email" defaultValue="support@smartliving.com" className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner" />
+                                    <input
+                                        type="email"
+                                        {...register('contactEmail', {
+                                            required: {
+                                                value: true,
+                                                message: 'Email liên hệ không được để trống',
+                                            },
+                                            pattern: {
+                                                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                                message: 'Email không hợp lệ',
+                                            },
+                                        })}
+                                        className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner"
+                                    />
+                                    {errors.contactEmail && <small className="text-red-500 text-sm">{errors.contactEmail.message}</small>}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Số điện thoại</label>
-                                    <input type="text" defaultValue="0901 234 567" className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner" />
+                                    <input
+                                        type="text"
+                                        {...register('contactPhone', {
+                                            required: {
+                                                value: true,
+                                                message: 'Số điện thoại không được để trống',
+                                            },
+                                            pattern: {
+                                                value: /^(0|\+84)\d{9,10}$/,
+                                                message: 'Số điện thoại không hợp lệ',
+                                            },
+                                        })}
+                                        className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary shadow-inner"
+                                    />
+                                    {errors.contactPhone && <small className="text-red-500 text-sm">{errors.contactPhone.message}</small>}
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Tiền tệ chính</label>
@@ -70,17 +142,17 @@ const AdminSettings = () => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </form>
                     )}
 
                     {activeTab === 'shipping' && (
-                        <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <form className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300" onSubmit={handleSubmit(onSaveShipping)}>
                             <div className="flex justify-between items-center">
                                 <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                                     <span className="w-2 h-8 bg-indigo-500 rounded-full"></span>
                                     Vận chuyển & Thuế
                                 </h2>
-                                <button className="px-6 py-2.5 bg-brandOrange text-white rounded-xl text-xs font-bold shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
+                                <button type="submit" className="px-6 py-2.5 bg-brandOrange text-white rounded-xl text-xs font-bold shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
                                     Lưu thay đổi
                                 </button>
                             </div>
@@ -88,11 +160,43 @@ const AdminSettings = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Phí ship mặc định (₫)</label>
-                                        <input type="text" defaultValue="35.000" className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-bold text-primary" />
+                                        <input
+                                            type="text"
+                                            {...register('shippingFee', {
+                                                required: {
+                                                    value: true,
+                                                    message: 'Phí ship không được để trống',
+                                                },
+                                                pattern: {
+                                                    value: /^\d{1,3}(\.\d{3})*|\d+$/,
+                                                    message: 'Phí ship không hợp lệ',
+                                                },
+                                            })}
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-bold text-primary"
+                                        />
+                                        {errors.shippingFee && <small className="text-red-500 text-sm">{errors.shippingFee.message}</small>}
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Thuế VAT (%)</label>
-                                        <input type="number" defaultValue="8" className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-bold text-primary" />
+                                        <input
+                                            type="number"
+                                            {...register('vat', {
+                                                required: {
+                                                    value: true,
+                                                    message: 'Thuế VAT không được để trống',
+                                                },
+                                                min: {
+                                                    value: 0,
+                                                    message: 'Thuế VAT không được nhỏ hơn 0',
+                                                },
+                                                max: {
+                                                    value: 100,
+                                                    message: 'Thuế VAT không được lớn hơn 100',
+                                                },
+                                            })}
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm font-bold text-primary"
+                                        />
+                                        {errors.vat && <small className="text-red-500 text-sm">{errors.vat.message}</small>}
                                     </div>
                                 </div>
                                 <div className="p-6 bg-indigo-50/50 rounded-[24px] border border-indigo-100">
@@ -100,7 +204,7 @@ const AdminSettings = () => {
                                     <p className="text-xs text-indigo-500 font-medium">Hiện tại hệ thống đang áp dụng biểu phí vận chuyển đồng giá cho tất cả các tỉnh thành tại Việt Nam.</p>
                                 </div>
                             </div>
-                        </div>
+                        </form>
                     )}
 
                     {activeTab === 'interface' && (
@@ -133,7 +237,7 @@ const AdminSettings = () => {
                     )}
 
                     {activeTab === 'security' && (
-                        <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <form className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300" onSubmit={handleSubmit(onUpdatePassword)}>
                             <h2 className="text-xl font-bold text-primary flex items-center gap-2">
                                 <span className="w-2 h-8 bg-red-500 rounded-full"></span>
                                 Bảo mật & Tài khoản
@@ -151,13 +255,46 @@ const AdminSettings = () => {
                                 <div className="space-y-4 pt-4 border-t border-gray-50">
                                     <h4 className="text-xs font-bold text-primary uppercase tracking-widest">Đổi mật khẩu nhanh</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <input type="password" placeholder="Mật khẩu cũ" className="px-4 py-3 rounded-xl border border-gray-100 text-sm italic-none" />
-                                        <input type="password" placeholder="Mật khẩu mới" className="px-4 py-3 rounded-xl border border-gray-100 text-sm italic-none" />
+                                        <div>
+                                            <input
+                                                type="password"
+                                                placeholder="Mật khẩu cũ"
+                                                {...register('currentPassword', {
+                                                    required: {
+                                                        value: true,
+                                                        message: 'Mật khẩu cũ không được để trống',
+                                                    },
+                                                })}
+                                                className="px-4 py-3 rounded-xl border border-gray-100 text-sm italic-none w-full"
+                                            />
+                                            {errors.currentPassword && <small className="text-red-500 text-sm">{errors.currentPassword.message}</small>}
+                                        </div>
+                                        <div>
+                                            <input
+                                                type="password"
+                                                placeholder="Mật khẩu mới"
+                                                {...register('newPassword', {
+                                                    required: {
+                                                        value: true,
+                                                        message: 'Mật khẩu mới không được để trống',
+                                                    },
+                                                    minLength: {
+                                                        value: 6,
+                                                        message: 'Mật khẩu mới phải có ít nhất 6 ký tự',
+                                                    },
+                                                    validate: {
+                                                        different: (value) => value !== watch('currentPassword') || 'Mật khẩu mới phải khác mật khẩu cũ',
+                                                    },
+                                                })}
+                                                className="px-4 py-3 rounded-xl border border-gray-100 text-sm italic-none w-full"
+                                            />
+                                            {errors.newPassword && <small className="text-red-500 text-sm">{errors.newPassword.message}</small>}
+                                        </div>
                                     </div>
-                                    <button className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-black transition">Cập nhật mật khẩu</button>
+                                    <button type="submit" className="px-5 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-black transition">Cập nhật mật khẩu</button>
                                 </div>
                             </div>
-                        </div>
+                        </form>
                     )}
                 </div>
             </div>

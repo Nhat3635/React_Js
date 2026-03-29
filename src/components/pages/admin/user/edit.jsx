@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 
 const EditUser = () => {
     const navigate = useNavigate();
@@ -14,8 +15,29 @@ const EditUser = () => {
         joinDate: '01/01/2026'
     });
 
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        defaultValues: {
+            name: userData.name,
+            phone: userData.phone,
+            email: userData.email,
+        },
+    });
+
+    const onUpdateUser = (data) => {
+        setUserData((prev) => ({
+            ...prev,
+            name: data.name,
+            phone: data.phone,
+        }));
+        console.log(data);
+    };
+
     return (
-        <div className="space-y-6 pb-20">
+        <form className="space-y-6 pb-20" id="editUserForm" onSubmit={handleSubmit(onUpdateUser)}>
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <nav className="flex text-xs text-gray-400 mb-2 font-medium tracking-wide uppercase">
@@ -28,8 +50,8 @@ const EditUser = () => {
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-primary">Cập nhật tài khoản</h1>
                 </div>
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/admin/users')} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
-                    <button className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">Cập nhật hồ sơ</button>
+                    <button type="button" onClick={() => navigate('/admin/users')} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
+                    <button type="submit" form="editUserForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">Cập nhật hồ sơ</button>
                 </div>
             </div>
 
@@ -44,15 +66,58 @@ const EditUser = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Họ và tên</label>
-                                <input type="text" defaultValue={userData.name} className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary" />
+                                <input
+                                    type="text"
+                                    {...register('name', {
+                                        required: {
+                                            value: true,
+                                            message: 'Họ và tên không được để trống',
+                                        },
+                                        minLength: {
+                                            value: 2,
+                                            message: 'Họ và tên phải có ít nhất 2 ký tự',
+                                        },
+                                    })}
+                                    className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary"
+                                />
+                                {errors.name && <small className="text-red-500 text-sm">{errors.name.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Số điện thoại</label>
-                                <input type="text" defaultValue={userData.phone} className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary" />
+                                <input
+                                    type="text"
+                                    {...register('phone', {
+                                        required: {
+                                            value: true,
+                                            message: 'Số điện thoại không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^(0|\+84)\d{9,10}$/,
+                                            message: 'Số điện thoại không hợp lệ',
+                                        },
+                                    })}
+                                    className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary"
+                                />
+                                {errors.phone && <small className="text-red-500 text-sm">{errors.phone.message}</small>}
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Địa chỉ Email</label>
-                                <input type="email" defaultValue={userData.email} className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/20 text-gray-400 focus:outline-none transition text-sm font-medium" readOnly />
+                                <input
+                                    type="email"
+                                    {...register('email', {
+                                        required: {
+                                            value: true,
+                                            message: 'Email không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                            message: 'Email không hợp lệ',
+                                        },
+                                    })}
+                                    className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/20 text-gray-400 focus:outline-none transition text-sm font-medium"
+                                    readOnly
+                                />
+                                {errors.email && <small className="text-red-500 text-sm">{errors.email.message}</small>}
                                 <p className="text-[10px] text-gray-400 pl-1 italic">Email không thể thay đổi để đảm bảo tính bảo mật.</p>
                             </div>
                         </div>
@@ -114,7 +179,7 @@ const EditUser = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 

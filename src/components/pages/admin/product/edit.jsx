@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 
 const EditProduct = () => {
     const navigate = useNavigate();
@@ -34,8 +35,32 @@ const EditProduct = () => {
         );
     };
 
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        defaultValues: {
+            name: productData.name,
+            sku: productData.sku,
+            category: productData.category,
+            price: productData.price,
+            discountPrice: productData.discountPrice,
+            description: productData.description,
+            stockStatus: productData.stockStatus,
+        },
+    });
+
+    const onUpdateProduct = (data) => {
+        setProductData((prev) => ({
+            ...prev,
+            ...data,
+        }));
+        console.log({ ...data, selectedColors, selectedSizes });
+    };
+
     return (
-        <div className="space-y-6 pb-20">
+        <form className="space-y-6 pb-20" id="editProductForm" onSubmit={handleSubmit(onUpdateProduct)}>
             {/* Header / Breadcrumbs */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -53,12 +78,13 @@ const EditProduct = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button 
+                        type="button"
                         onClick={() => navigate('/admin/products')}
                         className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition"
                     >
                         Quay lại
                     </button>
-                    <button className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
+                    <button type="submit" form="editProductForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
                         Cập nhật thay đổi
                     </button>
                 </div>
@@ -79,43 +105,88 @@ const EditProduct = () => {
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Tên sản phẩm</label>
                                 <input 
                                     type="text" 
-                                    defaultValue={productData.name}
+                                    {...register('name', {
+                                        required: {
+                                            value: true,
+                                            message: 'Tên sản phẩm không được để trống',
+                                        },
+                                        minLength: {
+                                            value: 3,
+                                            message: 'Tên sản phẩm phải có ít nhất 3 ký tự',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-primary" 
                                 />
+                                {errors.name && <small className="text-red-500 text-sm">{errors.name.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">SKU</label>
                                 <input 
                                     type="text" 
-                                    defaultValue={productData.sku}
+                                    {...register('sku', {
+                                        required: {
+                                            value: true,
+                                            message: 'SKU không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^SKU-[A-Z]{2,5}-\d{3}$/,
+                                            message: 'SKU không đúng định dạng (VD: SKU-ABC-001)',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/20 text-gray-400 focus:outline-none transition text-sm font-medium" 
                                     readOnly 
                                 />
+                                {errors.sku && <small className="text-red-500 text-sm">{errors.sku.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Danh mục</label>
-                                <select defaultValue={productData.category} className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none">
-                                    <option>Sofa</option>
-                                    <option>Bàn trà</option>
-                                    <option>Đèn trang trí</option>
-                                    <option>Giường ngủ</option>
+                                <select
+                                    {...register('category', {
+                                        required: {
+                                            value: true,
+                                            message: 'Vui lòng chọn danh mục',
+                                        },
+                                    })}
+                                    className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none"
+                                >
+                                    <option value="Sofa">Sofa</option>
+                                    <option value="Bàn trà">Bàn trà</option>
+                                    <option value="Đèn trang trí">Đèn trang trí</option>
+                                    <option value="Giường ngủ">Giường ngủ</option>
                                 </select>
+                                {errors.category && <small className="text-red-500 text-sm">{errors.category.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Giá bán (₫)</label>
                                 <input 
                                     type="text" 
-                                    defaultValue={productData.price}
+                                    {...register('price', {
+                                        required: {
+                                            value: true,
+                                            message: 'Giá bán không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^\d{1,3}(\.\d{3})*|\d+$/,
+                                            message: 'Giá bán không hợp lệ',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-brandOrange" 
                                 />
+                                {errors.price && <small className="text-red-500 text-sm">{errors.price.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Giá cũ (tùy chọn)</label>
                                 <input 
                                     type="text" 
-                                    defaultValue={productData.discountPrice}
+                                    {...register('discountPrice', {
+                                        pattern: {
+                                            value: /^$|^\d{1,3}(\.\d{3})*|\d+$/,
+                                            message: 'Giá cũ không hợp lệ',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium" 
                                 />
+                                {errors.discountPrice && <small className="text-red-500 text-sm">{errors.discountPrice.message}</small>}
                             </div>
                         </div>
 
@@ -123,9 +194,19 @@ const EditProduct = () => {
                             <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Mô tả sản phẩm</label>
                             <textarea 
                                 rows="6" 
-                                defaultValue={productData.description}
+                                {...register('description', {
+                                    required: {
+                                        value: true,
+                                        message: 'Mô tả sản phẩm không được để trống',
+                                    },
+                                    minLength: {
+                                        value: 10,
+                                        message: 'Mô tả sản phẩm phải có ít nhất 10 ký tự',
+                                    },
+                                })}
                                 className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium resize-none leading-relaxed"
                             ></textarea>
+                            {errors.description && <small className="text-red-500 text-sm">{errors.description.message}</small>}
                         </div>
                     </div>
 
@@ -146,6 +227,7 @@ const EditProduct = () => {
                                 <div className="flex flex-wrap gap-2">
                                     {colors.map((color) => (
                                         <button 
+                                            type="button"
                                             key={color}
                                             onClick={() => toggleColor(color)}
                                             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
@@ -166,6 +248,7 @@ const EditProduct = () => {
                                 <div className="flex flex-wrap gap-2">
                                     {sizes.map((size) => (
                                         <button 
+                                            type="button"
                                             key={size}
                                             onClick={() => toggleSize(size)}
                                             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
@@ -197,11 +280,20 @@ const EditProduct = () => {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Trạng thái kho</label>
-                                <select defaultValue={productData.stockStatus} className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold outline-none">
-                                    <option>Còn hàng</option>
-                                    <option>Sắp về</option>
-                                    <option>Ngừng kinh doanh</option>
+                                <select
+                                    {...register('stockStatus', {
+                                        required: {
+                                            value: true,
+                                            message: 'Vui lòng chọn trạng thái kho',
+                                        },
+                                    })}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold outline-none"
+                                >
+                                    <option value="Còn hàng">Còn hàng</option>
+                                    <option value="Sắp về">Sắp về</option>
+                                    <option value="Ngừng kinh doanh">Ngừng kinh doanh</option>
                                 </select>
+                                {errors.stockStatus && <small className="text-red-500 text-sm">{errors.stockStatus.message}</small>}
                             </div>
                         </div>
                     </div>
@@ -231,7 +323,7 @@ const EditProduct = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 

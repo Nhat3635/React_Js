@@ -1,10 +1,21 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 
 const CreateProduct = () => {
     const navigate = useNavigate();
     const [selectedColors, setSelectedColors] = useState(['Xám Khói']);
     const [selectedSizes, setSelectedSizes] = useState(['Vừa (2.0m)']);
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        defaultValues: {
+            category: 'Sofa',
+            stockStatus: 'Còn hàng',
+        },
+    });
 
     const colors = ['Trắng Kem', 'Xám Khói', 'Vàng Sồi', 'Đen Tuyền', 'Xanh Navy', 'Hồng Pastel'];
     const sizes = ['Nhỏ (1.6m)', 'Vừa (2.0m)', 'Lớn (2.4m)', 'Cực đại (2.8m)'];
@@ -21,8 +32,12 @@ const CreateProduct = () => {
         );
     };
 
+    const onCreateProduct = (data) => {
+        console.log({ ...data, selectedColors, selectedSizes });
+    };
+
     return (
-        <div className="space-y-6 pb-20">
+        <form className="space-y-6 pb-20" id="createProductForm" onSubmit={handleSubmit(onCreateProduct)}>
             {/* Header / Breadcrumbs */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -37,12 +52,13 @@ const CreateProduct = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button 
+                        type="button"
                         onClick={() => navigate('/admin/products')}
                         className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition"
                     >
                         Hủy bỏ
                     </button>
-                    <button className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
+                    <button type="submit" form="createProductForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition">
                         Lưu sản phẩm
                     </button>
                 </div>
@@ -64,41 +80,90 @@ const CreateProduct = () => {
                                 <input 
                                     type="text" 
                                     placeholder="Nhập tên sản phẩm (vd: Ghế Sofa Minimalist)" 
+                                    {...register('name', {
+                                        required: {
+                                            value: true,
+                                            message: 'Tên sản phẩm không được để trống',
+                                        },
+                                        minLength: {
+                                            value: 3,
+                                            message: 'Tên sản phẩm phải có ít nhất 3 ký tự',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium" 
                                 />
+                                {errors.name && <small className="text-red-500 text-sm">{errors.name.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">SKU</label>
                                 <input 
                                     type="text" 
                                     placeholder="SKU-XXX-000" 
+                                    {...register('sku', {
+                                        required: {
+                                            value: true,
+                                            message: 'SKU không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^SKU-[A-Z]{2,5}-\d{3}$/,
+                                            message: 'SKU không đúng định dạng (VD: SKU-ABC-001)',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium" 
                                 />
+                                {errors.sku && <small className="text-red-500 text-sm">{errors.sku.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Danh mục</label>
-                                <select className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none">
-                                    <option>Sofa</option>
-                                    <option>Bàn trà</option>
-                                    <option>Đèn trang trí</option>
-                                    <option>Giường ngủ</option>
+                                <select
+                                    {...register('category', {
+                                        required: {
+                                            value: true,
+                                            message: 'Vui lòng chọn danh mục',
+                                        },
+                                    })}
+                                    className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none"
+                                >
+                                    <option value="Sofa">Sofa</option>
+                                    <option value="Bàn trà">Bàn trà</option>
+                                    <option value="Đèn trang trí">Đèn trang trí</option>
+                                    <option value="Giường ngủ">Giường ngủ</option>
                                 </select>
+                                {errors.category && <small className="text-red-500 text-sm">{errors.category.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Giá bán cơ bản (₫)</label>
                                 <input 
                                     type="text" 
                                     placeholder="0" 
+                                    {...register('price', {
+                                        required: {
+                                            value: true,
+                                            message: 'Giá bán không được để trống',
+                                        },
+                                        pattern: {
+                                            value: /^\d{1,3}(\.\d{3})*|\d+$/,
+                                            message: 'Giá bán không hợp lệ',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-bold text-brandOrange" 
                                 />
+                                {errors.price && <small className="text-red-500 text-sm">{errors.price.message}</small>}
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Giá khuyến mãi (tùy chọn)</label>
                                 <input 
                                     type="text" 
                                     placeholder="0" 
+                                    {...register('discountPrice', {
+                                        pattern: {
+                                            value: /^$|^\d{1,3}(\.\d{3})*|\d+$/,
+                                            message: 'Giá khuyến mãi không hợp lệ',
+                                        },
+                                    })}
                                     className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium" 
                                 />
+                                {errors.discountPrice && <small className="text-red-500 text-sm">{errors.discountPrice.message}</small>}
                             </div>
                         </div>
 
@@ -107,8 +172,19 @@ const CreateProduct = () => {
                             <textarea 
                                 rows="6" 
                                 placeholder="Viết mô tả chi tiết về sản phẩm..." 
+                                {...register('description', {
+                                    required: {
+                                        value: true,
+                                        message: 'Mô tả sản phẩm không được để trống',
+                                    },
+                                    minLength: {
+                                        value: 10,
+                                        message: 'Mô tả sản phẩm phải có ít nhất 10 ký tự',
+                                    },
+                                })}
                                 className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium resize-none leading-relaxed"
                             ></textarea>
+                            {errors.description && <small className="text-red-500 text-sm">{errors.description.message}</small>}
                         </div>
                     </div>
 
@@ -132,6 +208,7 @@ const CreateProduct = () => {
                                 <div className="flex flex-wrap gap-2">
                                     {colors.map((color) => (
                                         <button 
+                                            type="button"
                                             key={color}
                                             onClick={() => toggleColor(color)}
                                             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
@@ -143,7 +220,7 @@ const CreateProduct = () => {
                                             {color}
                                         </button>
                                     ))}
-                                    <button className="px-4 py-2 rounded-xl text-xs font-bold text-brandOrange border border-dashed border-brandOrange/50 hover:bg-orange-50 transition-all flex items-center gap-1">
+                                    <button type="button" className="px-4 py-2 rounded-xl text-xs font-bold text-brandOrange border border-dashed border-brandOrange/50 hover:bg-orange-50 transition-all flex items-center gap-1">
                                         + Thêm màu
                                     </button>
                                 </div>
@@ -158,6 +235,7 @@ const CreateProduct = () => {
                                 <div className="flex flex-wrap gap-2">
                                     {sizes.map((size) => (
                                         <button 
+                                            type="button"
                                             key={size}
                                             onClick={() => toggleSize(size)}
                                             className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
@@ -169,7 +247,7 @@ const CreateProduct = () => {
                                             {size}
                                         </button>
                                     ))}
-                                    <button className="px-4 py-2 rounded-xl text-xs font-bold text-primary border border-dashed border-primary/50 hover:bg-gray-100 transition-all flex items-center gap-1">
+                                    <button type="button" className="px-4 py-2 rounded-xl text-xs font-bold text-primary border border-dashed border-primary/50 hover:bg-gray-100 transition-all flex items-center gap-1">
                                         + Thêm size
                                     </button>
                                 </div>
@@ -200,11 +278,20 @@ const CreateProduct = () => {
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Trạng thái kho</label>
-                                <select className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none">
-                                    <option>Còn hàng</option>
-                                    <option>Sắp về</option>
-                                    <option>Ngừng kinh doanh</option>
+                                <select
+                                    {...register('stockStatus', {
+                                        required: {
+                                            value: true,
+                                            message: 'Vui lòng chọn trạng thái kho',
+                                        },
+                                    })}
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-secondary/30 focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium outline-none"
+                                >
+                                    <option value="Còn hàng">Còn hàng</option>
+                                    <option value="Sắp về">Sắp về</option>
+                                    <option value="Ngừng kinh doanh">Ngừng kinh doanh</option>
                                 </select>
+                                {errors.stockStatus && <small className="text-red-500 text-sm">{errors.stockStatus.message}</small>}
                             </div>
                         </div>
                     </div>
@@ -233,7 +320,7 @@ const CreateProduct = () => {
                     </div>
                 </div>
             </div>
-        </div>
+        </form>
     );
 };
 
