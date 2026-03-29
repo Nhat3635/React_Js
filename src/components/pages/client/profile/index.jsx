@@ -1,11 +1,58 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
 
 const Profile = () => {
     // Quản lý Tab hiển thị
     const [activeTab, setActiveTab] = useState("info");
     // Quản lý trạng thái Modal thêm địa chỉ
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const {
+        register: registerInfo,
+        handleSubmit: handleSubmitInfo,
+        formState: { errors: infoErrors },
+    } = useForm({
+        defaultValues: {
+            fullName: "Trần Anh Thư",
+            phone: "0987654321",
+            email: "anhthu.tran@example.com",
+            birthday: "1995-10-15",
+            gender: "female",
+        },
+    });
+
+    const {
+        register: registerAddress,
+        handleSubmit: handleSubmitAddress,
+        reset: resetAddress,
+        formState: { errors: addressErrors },
+    } = useForm({
+        defaultValues: {
+            receiverName: "",
+            receiverPhone: "",
+            city: "",
+            district: "",
+            ward: "",
+            detailAddress: "",
+            isDefault: false,
+        },
+    });
+
+    const onSaveProfile = (data) => {
+        console.log("Profile data:", data);
+    };
+
+    const onSaveAddress = (data) => {
+        console.log("Address data:", data);
+        resetAddress();
+        setIsModalOpen(false);
+    };
+
+    const closeAddressModal = () => {
+        resetAddress();
+        setIsModalOpen(false);
+    };
 
     // Hàm tiện hướng xử lý màu nút khi được chọn
     const getTabClass = (tabName) => {
@@ -68,48 +115,142 @@ const Profile = () => {
                         <div id="tabInfo" className={`profile-content bg-white p-8 md:p-10 rounded-[32px] shadow-sm border border-gray-100 relative ${activeTab === 'info' ? 'block' : 'hidden'}`}>
                             <h2 className="text-2xl font-bold text-primary mb-8 px-1">Chỉnh sửa thông tin cá nhân</h2>
 
-                            <form className="flex flex-col gap-6">
+                            <form className="flex flex-col gap-6" onSubmit={handleSubmitInfo(onSaveProfile)}>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-medium text-textMuted px-1">Họ và tên</label>
-                                        <input type="text" defaultValue="Trần Anh Thư" className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm" />
+                                        <input
+                                            {...registerInfo("fullName", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Họ và tên không được để trống",
+                                                },
+                                                minLength: {
+                                                    value: 2,
+                                                    message: "Họ và tên phải có ít nhất 2 ký tự",
+                                                },
+                                            })}
+                                            type="text"
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm"
+                                        />
+                                        {infoErrors.fullName && (
+                                            <small className="text-red-500 text-sm">{infoErrors.fullName.message}</small>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-medium text-textMuted px-1">Số điện thoại</label>
-                                        <input type="tel" defaultValue="0987 654 321" className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm" />
+                                        <input
+                                            {...registerInfo("phone", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Số điện thoại không được để trống",
+                                                },
+                                                pattern: {
+                                                    value: /^(\+84|0)\d{9}$/,
+                                                    message: "Số điện thoại không hợp lệ",
+                                                },
+                                            })}
+                                            type="tel"
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm"
+                                        />
+                                        {infoErrors.phone && (
+                                            <small className="text-red-500 text-sm">{infoErrors.phone.message}</small>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-medium text-textMuted px-1">Địa chỉ Email</label>
-                                        <input type="email" defaultValue="anhthu.tran@example.com" className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm" readOnly />
+                                        <input
+                                            {...registerInfo("email", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Email không được để trống",
+                                                },
+                                                pattern: {
+                                                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                                                    message: "Email không hợp lệ",
+                                                },
+                                            })}
+                                            type="email"
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm"
+                                            readOnly
+                                        />
+                                        {infoErrors.email && (
+                                            <small className="text-red-500 text-sm">{infoErrors.email.message}</small>
+                                        )}
                                         <span className="text-xs text-green-500 px-1 font-medium mt-1">Đã xác minh</span>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-medium text-textMuted px-1">Ngày sinh</label>
-                                        <input type="date" defaultValue="1995-10-15" className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm text-primary" />
+                                        <input
+                                            {...registerInfo("birthday", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Ngày sinh không được để trống",
+                                                },
+                                            })}
+                                            type="date"
+                                            className="w-full px-5 py-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-secondary transition text-sm text-primary"
+                                        />
+                                        {infoErrors.birthday && (
+                                            <small className="text-red-500 text-sm">{infoErrors.birthday.message}</small>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-medium text-textMuted px-1">Giới tính</label>
                                     <div className="flex gap-6 mt-2 px-1">
                                         <label className="flex items-center cursor-pointer">
-                                            <input type="radio" name="gender" className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500" defaultChecked />
+                                            <input
+                                                {...registerInfo("gender", {
+                                                    required: {
+                                                        value: true,
+                                                        message: "Vui lòng chọn giới tính",
+                                                    },
+                                                })}
+                                                type="radio"
+                                                value="female"
+                                                className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
+                                            />
                                             <span className="ml-2 text-primary text-sm font-medium">Nữ</span>
                                         </label>
                                         <label className="flex items-center cursor-pointer">
-                                            <input type="radio" name="gender" className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500" />
+                                            <input
+                                                {...registerInfo("gender", {
+                                                    required: {
+                                                        value: true,
+                                                        message: "Vui lòng chọn giới tính",
+                                                    },
+                                                })}
+                                                type="radio"
+                                                value="male"
+                                                className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
+                                            />
                                             <span className="ml-2 text-primary text-sm font-medium">Nam</span>
                                         </label>
                                         <label className="flex items-center cursor-pointer">
-                                            <input type="radio" name="gender" className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500" />
+                                            <input
+                                                {...registerInfo("gender", {
+                                                    required: {
+                                                        value: true,
+                                                        message: "Vui lòng chọn giới tính",
+                                                    },
+                                                })}
+                                                type="radio"
+                                                value="other"
+                                                className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
+                                            />
                                             <span className="ml-2 text-primary text-sm font-medium">Khác</span>
                                         </label>
                                     </div>
+                                    {infoErrors.gender && (
+                                        <small className="text-red-500 text-sm px-1">{infoErrors.gender.message}</small>
+                                    )}
                                 </div>
 
                                 <div className="mt-4">
-                                    <button type="button" className="bg-orange-500 text-white px-10 py-4 rounded-xl font-bold hover:bg-primary transition duration-300 shadow-md">
+                                    <button type="submit" className="bg-orange-500 text-white px-10 py-4 rounded-xl font-bold hover:bg-primary transition duration-300 shadow-md">
                                         Lưu thay đổi
                                     </button>
                                 </div>
@@ -256,80 +397,168 @@ const Profile = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-opacity duration-300">
                     {/* Modal Backdrop */}
-                    <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
+                    <div className="absolute inset-0 bg-primary/40 backdrop-blur-sm" onClick={closeAddressModal}></div>
 
                     {/* Modal Content */}
                     <div className="bg-white w-full max-w-lg rounded-[32px] shadow-2xl relative z-10 transform transition-transform duration-300 overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="text-xl font-bold text-primary">Thêm địa chỉ mới</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-red-500 transition focus:outline-none bg-gray-50 hover:bg-red-50 p-2 rounded-full">
+                            <button onClick={closeAddressModal} className="text-gray-400 hover:text-red-500 transition focus:outline-none bg-gray-50 hover:bg-red-50 p-2 rounded-full">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             </button>
                         </div>
 
                         {/* Body Area */}
                         <div className="p-8 overflow-y-auto">
-                            <form className="flex flex-col gap-5">
+                            <form className="flex flex-col gap-5" onSubmit={handleSubmitAddress(onSaveAddress)}>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-semibold text-primary px-1">Họ và tên</label>
-                                        <input type="text" placeholder="Nhập họ và tên" required className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm" />
+                                        <input
+                                            {...registerAddress("receiverName", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Họ và tên không được để trống",
+                                                },
+                                                minLength: {
+                                                    value: 2,
+                                                    message: "Họ và tên phải có ít nhất 2 ký tự",
+                                                },
+                                            })}
+                                            type="text"
+                                            placeholder="Nhập họ và tên"
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
+                                        />
+                                        {addressErrors.receiverName && (
+                                            <small className="text-red-500 text-sm">{addressErrors.receiverName.message}</small>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-semibold text-primary px-1">Số điện thoại</label>
-                                        <input type="tel" placeholder="Nhập số điện thoại" required className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm" />
+                                        <input
+                                            {...registerAddress("receiverPhone", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Số điện thoại không được để trống",
+                                                },
+                                                pattern: {
+                                                    value: /^(\+84|0)\d{9}$/,
+                                                    message: "Số điện thoại không hợp lệ",
+                                                },
+                                            })}
+                                            type="tel"
+                                            placeholder="Nhập số điện thoại"
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
+                                        />
+                                        {addressErrors.receiverPhone && (
+                                            <small className="text-red-500 text-sm">{addressErrors.receiverPhone.message}</small>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-semibold text-primary px-1">Tỉnh/Thành phố</label>
-                                        <select required defaultValue="" className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer">
+                                        <select
+                                            {...registerAddress("city", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Vui lòng chọn Tỉnh/Thành phố",
+                                                },
+                                            })}
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer"
+                                        >
                                             <option value="" disabled>Chọn Tỉnh/Thành phố</option>
                                             <option value="CT">Cần Thơ</option>
                                             <option value="HCM">Hồ Chí Minh</option>
                                             <option value="HN">Hà Nội</option>
                                         </select>
+                                        {addressErrors.city && (
+                                            <small className="text-red-500 text-sm">{addressErrors.city.message}</small>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <label className="text-sm font-semibold text-primary px-1">Quận/Huyện</label>
-                                        <select required defaultValue="" className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer">
+                                        <select
+                                            {...registerAddress("district", {
+                                                required: {
+                                                    value: true,
+                                                    message: "Vui lòng chọn Quận/Huyện",
+                                                },
+                                            })}
+                                            className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer"
+                                        >
                                             <option value="" disabled>Chọn Quận/Huyện</option>
                                             <option value="NK">Ninh Kiều</option>
                                             <option value="CR">Cái Răng</option>
                                         </select>
+                                        {addressErrors.district && (
+                                            <small className="text-red-500 text-sm">{addressErrors.district.message}</small>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-semibold text-primary px-1">Phường/Xã</label>
-                                    <select required defaultValue="" className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer">
+                                    <select
+                                        {...registerAddress("ward", {
+                                            required: {
+                                                value: true,
+                                                message: "Vui lòng chọn Phường/Xã",
+                                            },
+                                        })}
+                                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm text-textMuted cursor-pointer"
+                                    >
                                         <option value="" disabled>Chọn Phường/Xã</option>
                                         <option value="XK">Xuân Khánh</option>
                                         <option value="HP">Hưng Phú</option>
                                     </select>
+                                    {addressErrors.ward && (
+                                        <small className="text-red-500 text-sm">{addressErrors.ward.message}</small>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-col gap-2">
                                     <label className="text-sm font-semibold text-primary px-1">Địa chỉ cụ thể</label>
-                                    <textarea placeholder="Số nhà, tên đường..." required rows="2" className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm resize-none"></textarea>
+                                    <textarea
+                                        {...registerAddress("detailAddress", {
+                                            required: {
+                                                value: true,
+                                                message: "Địa chỉ cụ thể không được để trống",
+                                            },
+                                            minLength: {
+                                                value: 5,
+                                                message: "Địa chỉ cụ thể phải có ít nhất 5 ký tự",
+                                            },
+                                        })}
+                                        placeholder="Số nhà, tên đường..."
+                                        rows="2"
+                                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm resize-none"
+                                    ></textarea>
+                                    {addressErrors.detailAddress && (
+                                        <small className="text-red-500 text-sm">{addressErrors.detailAddress.message}</small>
+                                    )}
                                 </div>
 
                                 {/* Checkbox Default */}
                                 <div className="flex items-center mt-2 px-1">
                                     <label className="flex items-center cursor-pointer group">
-                                        <input type="checkbox" className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" />
+                                        <input
+                                            {...registerAddress("isDefault")}
+                                            type="checkbox"
+                                            className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500"
+                                        />
                                         <span className="ml-2.5 font-medium text-sm text-textMuted group-hover:text-primary transition">Đặt làm địa chỉ mặc định</span>
                                     </label>
                                 </div>
-                            </form>
-                        </div>
 
-                        {/* Footer Buttons */}
-                        <div className="px-8 py-6 border-t border-gray-50 flex justify-end gap-3 bg-gray-50/50">
-                            <button onClick={() => setIsModalOpen(false)} type="button" className="px-6 py-3 rounded-xl border border-gray-200 text-sm font-bold text-textMuted hover:bg-gray-100 hover:text-primary transition duration-300 shadow-sm">Hủy</button>
-                            <button type="button" className="px-6 py-3 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition shadow-[0_4px_14px_0_rgb(249,115,22,0.39)]">Lưu địa chỉ</button>
+                                {/* Footer Buttons */}
+                                <div className="pt-4 border-t border-gray-50 flex justify-end gap-3 bg-gray-50/50 -mx-8 px-8 pb-6 mt-2">
+                                    <button onClick={closeAddressModal} type="button" className="px-6 py-3 rounded-xl border border-gray-200 text-sm font-bold text-textMuted hover:bg-gray-100 hover:text-primary transition duration-300 shadow-sm">Hủy</button>
+                                    <button type="submit" className="px-6 py-3 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition shadow-[0_4px_14px_0_rgb(249,115,22,0.39)]">Lưu địa chỉ</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
