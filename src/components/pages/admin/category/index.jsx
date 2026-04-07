@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { categoriesData } from './data';
 
 const CategoryManagement = () => {
-    const categories = [
-        { id: 'CAT-01', name: 'Sofa & Ghế bành', description: 'Các loại sofa văng, sofa góc và ghế thư giãn cao cấp.', count: 42, status: 'Hoạt động', image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=200&q=80' },
-        { id: 'CAT-02', name: 'Bàn trà & Bàn ăn', description: 'Bộ sưu tập bàn gỗ sồi, bàn kính hiện đại cho phòng khách.', count: 28, status: 'Hoạt động', image: 'https://images.unsplash.com/photo-1594026112284-02bb6f3352fe?w=200&q=80' },
-        { id: 'CAT-03', name: 'Đèn & Trang trí', description: 'Đèn trần, đèn đứng và các phụ kiện làm đẹp không gian.', count: 115, status: 'Hoạt động', image: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=200&q=80' },
-        { id: 'CAT-04', name: 'Phòng ngủ', description: 'Giường ngủ, tủ đầu giường và chăn ga gối đệm.', count: 15, status: 'Tạm ngưng', image: 'https://images.unsplash.com/photo-1505691723518-36a5ac3be353?w=200&q=80' },
-    ];
+    const categories = categoriesData;
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredCategories = categories.filter((item) =>
+        item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
         <div className="space-y-6">
@@ -24,6 +25,8 @@ const CategoryManagement = () => {
                             type="text" 
                             className="w-64 pl-4 pr-10 py-2.5 bg-white border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange shadow-soft outline-none transition-all" 
                             placeholder="Tìm danh mục..." 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                         <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within:text-brandOrange transition-colors">
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -52,7 +55,7 @@ const CategoryManagement = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {categories.map((item) => (
+                            {filteredCategories.length > 0 ? filteredCategories.map((item) => (
                                 <tr key={item.id} className="hover:bg-gray-50/30 transition-colors group">
                                     <td className="p-5 pl-8">
                                         <span className="text-xs font-bold text-gray-400">#{item.id}</span>
@@ -91,7 +94,13 @@ const CategoryManagement = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr>
+                                    <td colSpan="7" className="p-10 text-center text-sm text-gray-400 font-medium">
+                                        Không tìm thấy danh mục nào khớp với &quot;{searchQuery}&quot;.
+                                    </td>
+                                </tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

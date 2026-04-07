@@ -3,16 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { categoriesData } from './data';
 
 const EditCategory = () => {
     const navigate = useNavigate();
-    const [categoryData, setCategoryData] = React.useState({
-        id: 'CAT-01',
-        name: 'Sofa & Ghế bành',
-        description: 'Các loại sofa văng, sofa góc và ghế thư giãn cao cấp.',
-        status: 'Hoạt động',
-        image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=500&q=80'
-    });
+    const [categoryData, setCategoryData] = React.useState(categoriesData[0]);
 
     const {
         register,
@@ -76,6 +71,14 @@ const EditCategory = () => {
                                         minLength: {
                                             value: 2,
                                             message: 'Tên danh mục phải có ít nhất 2 ký tự',
+                                        },
+                                        validate: (value) => {
+                                            const isDuplicate = categoriesData.some(
+                                                (cat) =>
+                                                    cat.id !== categoryData.id &&
+                                                    cat.name.trim().toLowerCase() === value.trim().toLowerCase()
+                                            );
+                                            return !isDuplicate || 'Tên danh mục đã tồn tại, vui lòng chọn tên khác';
                                         },
                                     })}
                                 />
