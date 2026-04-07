@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
+import { categoriesData } from './data';
 
 const CreateCategory = () => {
     const navigate = useNavigate();
@@ -62,6 +63,12 @@ const CreateCategory = () => {
                                         minLength: {
                                             value: 2,
                                             message: 'Tên danh mục phải có ít nhất 2 ký tự',
+                                        },
+                                        validate: (value) => {
+                                            const isDuplicate = categoriesData.some(
+                                                (cat) => cat.name.trim().toLowerCase() === value.trim().toLowerCase()
+                                            );
+                                            return !isDuplicate || 'Tên danh mục đã tồn tại, vui lòng chọn tên khác';
                                         },
                                     })}
                                 />
