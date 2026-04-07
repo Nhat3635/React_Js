@@ -1,8 +1,15 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+
 import AdminHeader from "../../ui/admin/header";
 import AdminMenu from "../../ui/admin/menu";
 
 const AdminLayout = () => {
+    const { pathname } = useLocation();
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+    
     return (
         <div className="bg-secondary text-primary font-sans antialiased h-screen flex overflow-hidden w-full">
             {/* 1. Sidebar (Fixed Left) */}

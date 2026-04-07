@@ -1,7 +1,15 @@
+import { useEffect } from "react";
+import { useLocation, Outlet} from "react-router-dom";
 import Header from "../../ui/client/header";
-import {Outlet} from "react-router-dom";
 import Footer from "../../ui/client/footer";
-const ClientLayout = () =>{
+
+const ClientLayout = () => {
+    const { pathname } = useLocation();
+
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [pathname]);
+
     return (
         <div>
             <Header />
@@ -10,4 +18,5 @@ const ClientLayout = () =>{
         </div>
     )
 }
+
 export default ClientLayout;

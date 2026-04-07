@@ -81,10 +81,11 @@ const ProductManagement = () => {
                             <tr className="bg-gray-50/50 text-gray-400 text-[11px] uppercase tracking-[0.1em] font-bold">
                                 <th className="p-5 pl-8">ID</th>
                                 <th className="p-5">Hình ảnh</th>
-                                <th className="p-5">Tên sản phẩm</th>
+                                <th className="p-5">Thông tin sản phẩm</th>
                                 <th className="p-5">Danh mục</th>
-                                <th className="p-5">Giá bán</th>
-                                <th className="p-5">Trạng thái</th>
+                                <th className="p-5">Thương hiệu</th>
+                                <th className="p-5">Giá cơ bản</th>
+                                <th className="p-5 text-center">Trạng thái</th>
                                 <th className="p-5 pr-8 text-right">Thao tác</th>
                             </tr>
                         </thead>
@@ -111,10 +112,13 @@ const ProductManagement = () => {
                                         </span>
                                     </td>
                                     <td className="p-5">
-                                        <span className="text-sm font-extrabold text-primary">{item.price}</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase">Ashley Furniture</span>
                                     </td>
                                     <td className="p-5">
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${getStatusStyle(item.status)}`}>
+                                        <span className="text-sm font-extrabold text-brandOrange">{item.price}</span>
+                                    </td>
+                                    <td className="p-5 text-center">
+                                        <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase border ${getStatusStyle(item.status)}`}>
                                             {item.status}
                                         </span>
                                     </td>

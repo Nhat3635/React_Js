@@ -20,22 +20,34 @@ const Shop = () => {
                     <div>
                         <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">Danh mục</h3>
                         <ul className="space-y-3">
-                            <li className="flex items-center"><input type="checkbox" id="cat-chair" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-chair" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition">Ghế</label></li>
-                            <li className="flex items-center"><input type="checkbox" id="cat-sofa" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-sofa" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition">Sofa</label></li>
-                            <li className="flex items-center"><input type="checkbox" id="cat-bed" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-bed" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition">Giường</label></li>
-                            <li className="flex items-center"><input type="checkbox" id="cat-lamp" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-lamp" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition">Đèn</label></li>
-                            <li className="flex items-center"><input type="checkbox" id="cat-table" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-table" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition">Bàn</label></li>
+                            <li className="flex items-center"><input type="checkbox" id="cat-chair" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-chair" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium">Ghế & Sofa</label></li>
+                            <li className="flex items-center"><input type="checkbox" id="cat-bed" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-bed" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium">Giường ngủ</label></li>
+                            <li className="flex items-center"><input type="checkbox" id="cat-lamp" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-lamp" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium">Đèn trang trí</label></li>
+                            <li className="flex items-center"><input type="checkbox" id="cat-table" className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500" /><label htmlFor="cat-table" className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium">Bàn làm việc</label></li>
                         </ul>
+                    </div>
+
+                    {/* Brand Filter */}
+                    <div>
+                        <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">Thương hiệu</h3>
+                        <div className="grid grid-cols-1 gap-3">
+                            {['IKEA', 'Ashley Furniture', 'Home Pro', 'Nội thất Xinh'].map(brand => (
+                                <div key={brand} className="flex items-center group">
+                                    <input type="checkbox" id={`brand-${brand}`} className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 cursor-pointer" />
+                                    <label htmlFor={`brand-${brand}`} className="ml-3 text-sm text-textMuted group-hover:text-primary transition cursor-pointer font-medium italic">{brand}</label>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Price Range */}
                     <div>
-                        <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">Mức giá</h3>
-                        <div className="flex items-center justify-between text-sm text-textMuted mb-2">
-                            <span>$0</span>
-                            <span id="priceDisplay">$2000</span>
+                        <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">Khoảng giá (₫)</h3>
+                        <div className="flex items-center justify-between text-xs font-bold text-primary mb-2">
+                            <span>0đ</span>
+                            <span id="priceDisplay" className="text-orange-500">50.000.000đ</span>
                         </div>
-                        <input type="range" min="0" max="2000" defaultValue="2000" id="priceRange" className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        <input type="range" min="0" max="50000000" defaultValue="50000000" id="priceRange" className="w-full h-1.5 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-orange-500 transition-all" />
                     </div>
 
                     {/* Colors */}
@@ -84,12 +96,15 @@ const Shop = () => {
                                 <img src="https://images.unsplash.com/photo-1592078615290-033ee584e267?w=600&q=80" alt="Sakarias Armchair" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition duration-300"></div>
                             </Link>
-                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-medium">Ghế</div>
+                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-bold italic">IKEA / Ghế</div>
                             <div className="text-lg font-semibold text-primary mb-1">Ghế Bành Sakarias</div>
                             <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">★★★★★</div>
                             <div className="flex items-center justify-between mt-auto">
-                                <span className="text-xl font-bold text-primary"><sup>$</sup>392</span>
-                                <button className="w-8 h-8 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart">+</button>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-400 uppercase font-bold">Giá từ</span>
+                                    <span className="text-lg font-extrabold text-primary">3.500.000đ</span>
+                                </div>
+                                <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">+</button>
                             </div>
                         </div>
                         {/* Product 2 */}
@@ -98,12 +113,15 @@ const Shop = () => {
                                 <img src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80" alt="Baltsar Chair" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition duration-300"></div>
                             </Link>
-                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-medium">Ghế</div>
-                            <div className="text-lg font-semibold text-primary mb-1">Ghế Baltsar</div>
+                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-bold italic">Ashley / Ghế</div>
+                            <div className="text-lg font-semibold text-primary mb-1">Ghế Baltsar Grey</div>
                             <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">★★★★☆</div>
                             <div className="flex items-center justify-between mt-auto">
-                                <span className="text-xl font-bold text-primary"><sup>$</sup>299</span>
-                                <button className="w-8 h-8 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart">+</button>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-400 uppercase font-bold">Giá từ</span>
+                                    <span className="text-lg font-extrabold text-primary">1.290.000đ</span>
+                                </div>
+                                <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">+</button>
                             </div>
                         </div>
                          {/* Product 3 */}
@@ -112,12 +130,15 @@ const Shop = () => {
                                 <img src="https://images.unsplash.com/photo-1540574163026-643ea20ade25?w=600&q=80" alt="Anjay Sofa" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                                 <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition duration-300"></div>
                             </Link>
-                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-medium">Sofa</div>
-                            <div className="text-lg font-semibold text-primary mb-1">Sofa Anjay</div>
+                            <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-bold italic">Home Pro / Sofa</div>
+                            <div className="text-lg font-semibold text-primary mb-1">Sofa Góc Anjay</div>
                             <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">★★★★★</div>
                             <div className="flex items-center justify-between mt-auto">
-                                <span className="text-xl font-bold text-primary"><sup>$</sup>519</span>
-                                <button className="w-8 h-8 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart">+</button>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] text-gray-400 uppercase font-bold">Giá từ</span>
+                                    <span className="text-lg font-extrabold text-primary">12.800.000đ</span>
+                                </div>
+                                <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">+</button>
                             </div>
                         </div>
                     </div>
