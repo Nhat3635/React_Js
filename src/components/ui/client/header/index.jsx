@@ -114,6 +114,7 @@ const Header = () => {
                 <Link to="/shop" className="hover:text-orange-400 transition py-6">Cửa hàng</Link>
                 <Link to="/about" className="hover:text-orange-400 transition py-6">Về chúng tôi</Link>
                 <Link to="/contact" className="hover:text-orange-400 transition py-6">Liên hệ</Link>
+                <Link to="/blog" className="hover:text-orange-400 transition py-6">Blog</Link>
             </nav>
 
             {/* Actions Group */}

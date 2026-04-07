@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const EditProduct = () => {
     const navigate = useNavigate();
@@ -41,6 +43,8 @@ const EditProduct = () => {
     const {
         register,
         handleSubmit,
+        setValue,
+        watch,
         formState: { errors },
     } = useForm({
         defaultValues: {
@@ -191,20 +195,21 @@ const EditProduct = () => {
 
                             <div className="space-y-2 md:col-span-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Mô tả sản phẩm</label>
-                                <textarea 
-                                    rows="4" 
-                                    {...register('description', {
-                                        required: {
-                                            value: true,
-                                            message: 'Mô tả sản phẩm không được để trống',
-                                        },
-                                        minLength: {
-                                            value: 10,
-                                            message: 'Mô tả sản phẩm phải có ít nhất 10 ký tự',
-                                        },
-                                    })}
-                                    className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium resize-none leading-relaxed"
-                                ></textarea>
+                                <div className="prose-editor border border-gray-100 rounded-xl overflow-hidden shadow-soft bg-white">
+                                    <CKEditor
+                                        editor={ ClassicEditor }
+                                        data={watch('description') || ''}
+                                        onReady={ editor => {
+                                            console.log( 'Editor is ready to use!', editor );
+                                        } }
+                                        onChange={ ( event, editor ) => {
+                                            const data = editor.getData();
+                                            setValue('description', data, { shouldValidate: true });
+                                        } }
+                                    />
+                                    {/* Register description to be tracked by react-hook-form */}
+                                    <input type="hidden" {...register('description', { required: 'Mô tả sản phẩm không được để trống' })} />
+                                </div>
                                 {errors.description && <small className="text-red-500 text-sm">{errors.description.message}</small>}
                             </div>
                         </div>

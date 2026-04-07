@@ -16,6 +16,8 @@ import Checkout from './components/pages/client/checkout';
 import Login from './components/pages/client/login';
 import Register from './components/pages/client/register';
 import ProductDetail from './components/pages/client/product-detail';
+import Blog from './components/pages/client/blog';
+import BlogDetail from './components/pages/client/blog-detail';
 
 // Layouts
 import AdminLayout from './components/layouts/AdminLayout';
@@ -35,6 +37,9 @@ import UserManagement from './components/pages/admin/user';
 import EditUser from './components/pages/admin/user/edit';
 import SalesReport from './components/pages/admin/report';
 import AdminSettings from './components/pages/admin/settings';
+import BlogManagement from './components/pages/admin/blog';
+import CreateBlog from './components/pages/admin/blog/create';
+import EditBlog from './components/pages/admin/blog/edit';
 
 function App() {
   return (
@@ -52,6 +57,8 @@ function App() {
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="product-detail" element={<ProductDetail />} />
+          <Route path="blog" element={<Blog />} />
+          <Route path="blog-detail/:id" element={<BlogDetail />} />
         </Route>
 
         {/* Nhóm giao diện của Admin (Có Header) */}
@@ -70,6 +77,9 @@ function App() {
           <Route path="users/edit" element={<EditUser />} />
           <Route path="reports" element={<SalesReport />} />
           <Route path="settings" element={<AdminSettings />} />
+          <Route path="blogs" element={<BlogManagement />} />
+          <Route path="blogs/create" element={<CreateBlog />} />
+          <Route path="blogs/edit/:id" element={<EditBlog />} />
         </Route>
       </Routes>
     </div>

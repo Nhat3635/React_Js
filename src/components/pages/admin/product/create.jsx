@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { CKEditor } from '@ckeditor/ckeditor5-react';
+import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 
 const CreateProduct = () => {
     const navigate = useNavigate();
@@ -9,6 +11,7 @@ const CreateProduct = () => {
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
     } = useForm({
         defaultValues: {
@@ -158,21 +161,21 @@ const CreateProduct = () => {
                             </div>
                             <div className="space-y-2 md:col-span-2">
                                 <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Mô tả sản phẩm</label>
-                                <textarea 
-                                    rows="4" 
-                                    placeholder="Viết mô tả chi tiết về sản phẩm..." 
-                                    {...register('description', {
-                                        required: {
-                                            value: true,
-                                            message: 'Mô tả sản phẩm không được để trống',
-                                        },
-                                        minLength: {
-                                            value: 10,
-                                            message: 'Mô tả sản phẩm phải có ít nhất 10 ký tự',
-                                        },
-                                    })}
-                                    className="w-full px-5 py-4 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange transition text-sm font-medium resize-none leading-relaxed"
-                                ></textarea>
+                                <div className="prose-editor border border-gray-100 rounded-xl overflow-hidden shadow-soft">
+                                    <CKEditor
+                                        editor={ ClassicEditor }
+                                        data=""
+                                        onReady={ editor => {
+                                            console.log( 'Editor is ready to use!', editor );
+                                        } }
+                                        onChange={ ( event, editor ) => {
+                                            const data = editor.getData();
+                                            setValue('description', data, { shouldValidate: true });
+                                        } }
+                                    />
+                                    {/* Register description to be tracked by react-hook-form */}
+                                    <input type="hidden" {...register('description', { required: 'Mô tả sản phẩm không được để trống' })} />
+                                </div>
                                 {errors.description && <small className="text-red-500 text-sm">{errors.description.message}</small>}
                             </div>
                         </div>
