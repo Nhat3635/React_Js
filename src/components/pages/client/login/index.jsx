@@ -185,12 +185,12 @@ const Login = () => {
                     Ghi nhớ đăng nhập
                   </span>
                 </label>
-                <a
-                  href="#"
+                <Link
+                  to="/forgot-password"
                   className="font-semibold text-primary hover:text-orange-500 transition px-1"
                 >
                   Quên mật khẩu?
-                </a>
+                </Link>
               </div>
 
               <button
