@@ -107,7 +107,7 @@ const Register = () => {
                     },
                   })}
                   type="text"
-                  placeholder="Tên người dùng"
+                  placeholder="username"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
                 />
                 {errors.username && (
