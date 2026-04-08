@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 
 const Profile = () => {
+    const navigate = useNavigate();
     // Quản lý Tab hiển thị
     const [activeTab, setActiveTab] = useState("info");
     // Quản lý trạng thái Modal thêm địa chỉ
@@ -54,6 +55,11 @@ const Profile = () => {
         setIsModalOpen(false);
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem("token");
+        navigate("/login");
+    };
+
     // Hàm tiện hướng xử lý màu nút khi được chọn
     const getTabClass = (tabName) => {
         return activeTab === tabName
@@ -100,10 +106,10 @@ const Profile = () => {
                                     Địa chỉ nhận hàng
                                 </button>
                                 <div className="h-px w-full bg-gray-100 my-2"></div>
-                                <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 font-medium rounded-xl transition w-full text-left">
+                                <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 font-medium rounded-xl transition w-full text-left">
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                                     Đăng xuất
-                                </Link>
+                                </button>
                             </nav>
                         </div>
                     </div>

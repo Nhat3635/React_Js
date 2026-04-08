@@ -4,6 +4,8 @@ import './App.css';
 
 // Layouts
 import ClientLayout from './components/layouts/ClientLayout';
+import ProtectedClient from './components/layouts/ProtectedClient';
+import ProtectedAdmin from './components/layouts/ProtectedAdmin';
 
 // Pages Client
 import Home from './components/pages/client/home';
@@ -51,9 +53,9 @@ function App() {
           <Route path="shop" element={<Shop />} />
           <Route path="about" element={<About />} />
           <Route path="contact" element={<Contact />} />
-          <Route path="cart" element={<Cart />} />
-          <Route path="profile" element={<Profile />} />
-          <Route path="checkout" element={<Checkout />} />
+          <Route path="cart" element={<ProtectedClient><Cart /></ProtectedClient>} />
+          <Route path="profile" element={<ProtectedClient><Profile /></ProtectedClient>} />
+          <Route path="checkout" element={<ProtectedClient><Checkout /></ProtectedClient>} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="product-detail" element={<ProductDetail />} />
@@ -62,7 +64,7 @@ function App() {
         </Route>
 
         {/* Nhóm giao diện của Admin (Có Header) */}
-        <Route path="/admin" element={<AdminLayout />}>
+        <Route path="/admin" element={<ProtectedAdmin><AdminLayout /></ProtectedAdmin>}>
           <Route index element={<Dashboard />} />
           <Route path="products" element={<ProductManagement />} />
           <Route path="products/create" element={<CreateProduct />} />
