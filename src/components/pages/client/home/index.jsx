@@ -1,4 +1,5 @@
 import React, { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import requestAPI from "../../../../api";
 import "./style.css";
 
@@ -32,7 +33,7 @@ const normalizeHomeProducts = (payload) => {
         item.thumbnail ??
         "https://placehold.co/600x600?text=PRODUCT",
       price: Number(String(priceValue).replace(/[^\d]/g, "")) || 0,
-      rating: Number(item.rating ?? item.review_score ?? 4.5),
+      rating: Number(item.rating ?? item.review_score ?? 0),
     };
   });
 };
@@ -117,7 +118,7 @@ const Home = () => {
   const loadHomeProducts = async () => {
     try {
       updateHomeState({ isLoadingProducts: true, productError: "" });
-
+        console.log("Fetching products for home page...");
       const response = await requestAPI({
         method: "GET",
         url: "/products/list",
@@ -280,24 +281,34 @@ const Home = () => {
                   key={product.id}
                   className="min-w-[280px] md:min-w-[320px] bg-white rounded-3xl p-5 shadow-sm hover:shadow-xl transition flex flex-col group border border-gray-100"
                 >
-                  <div className="h-64 bg-accent rounded-2xl mb-6 overflow-hidden relative">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                    />
-                  </div>
+                    <Link
+                      to={`/product-detail/${product.id}`}
+                      className="block"
+                    >
+                      <div className="h-64 bg-accent rounded-2xl mb-6 overflow-hidden relative">
+                        <img
+                          src={product.image}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                        />
+                      </div>
+                    </Link>
                   <div className="text-sm text-textMuted mb-2 uppercase tracking-wider font-medium">
                     {product.category}
                   </div>
-                  <div className="text-xl font-semibold text-primary mb-2 line-clamp-2">
+                  <Link
+                    to={`/product-detail/${product.id}`}
+                    className="text-xl font-semibold text-primary mb-2 line-clamp-2 hover:text-orange-500 transition"
+                  >
                     {product.name}
-                  </div>
-                  <div className="flex items-center space-x-1 mb-4">
-                    <span className="text-yellow-400">
-                      {formatStars(product.rating)}
-                    </span>
-                  </div>
+                  </Link>
+                  {Number(product.rating || 0) > 0 && (
+                    <div className="flex items-center space-x-1 mb-4">
+                      <span className="text-yellow-400">
+                        {formatStars(product.rating)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mt-auto">
                     <span className="text-2xl font-bold text-primary">
                       {formatPrice(product.price)}
