@@ -20,6 +20,8 @@ import Register from './components/pages/client/register';
 import ProductDetail from './components/pages/client/product-detail';
 import Blog from './components/pages/client/blog';
 import BlogDetail from './components/pages/client/blog-detail';
+import ForgotPassword from './components/pages/client/forgot-password';
+import ResetPassword from './components/pages/client/reset-password';
 
 // Layouts
 import AdminLayout from './components/layouts/AdminLayout';
@@ -58,6 +60,8 @@ function App() {
           <Route path="checkout" element={<ProtectedClient><Checkout /></ProtectedClient>} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
+          <Route path="forgot-password" element={<ForgotPassword />} />
+          <Route path="reset-password" element={<ResetPassword />} />
           <Route path="product-detail" element={<ProductDetail />} />
           <Route path="blog" element={<Blog />} />
           <Route path="blog-detail/:id" element={<BlogDetail />} />
