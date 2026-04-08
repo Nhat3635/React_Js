@@ -39,7 +39,7 @@ const normalizeProducts = (payload) => {
         item.avatar ??
         "https://placehold.co/600x600?text=PRODUCT",
       price: parsedPrice,
-      rating: Number(item.rating ?? item.review_score ?? 4.5),
+      rating: Number(item.rating ?? item.review_score ?? 0),
       stockStatus: item.stock_status ?? item.status ?? "Còn hàng",
       sortKey: item.created_at ? new Date(item.created_at).getTime() : 0,
     };
@@ -115,7 +115,7 @@ const Shop = () => {
   const loadProducts = async () => {
     try {
       updateShopState({ isLoading: true, error: "" });
-
+        console.log("Fetching products from API...");
       const response = await requestAPI({
         method: "GET",
         url: "/products/list",
@@ -545,9 +545,11 @@ const Shop = () => {
                     >
                       {product.name}
                     </Link>
-                    <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">
-                      {formatStars(product.rating)}
-                    </div>
+                    {Number(product.rating || 0) > 0 && (
+                      <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">
+                        {formatStars(product.rating)}
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mt-auto">
                       <div className="flex flex-col">
                         <span className="text-[10px] text-gray-400 uppercase font-bold">
