@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import requestAPI from "../../../../api";
+
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
 
   const {
     register,
@@ -10,8 +13,24 @@ const Login = () => {
     formState: { errors },
   } = useForm();
 
-  const onLogin = (data) => {
-    console.log(data);
+  const onLogin = async (data) => {
+    try {
+      const response = await requestAPI({
+        method: "POST",
+        url: "/users/login",
+        data: {
+          email: data.email,
+          password: data.password,
+        },
+      });
+
+      if (response?.status === 200 && response?.data?.token) {
+        localStorage.setItem("token", response.data.token);
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Login failed:", error);
+    }
   };
   return (
     <div>

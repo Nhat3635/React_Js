@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import requestAPI from "../../../../api";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -11,8 +12,30 @@ const Register = () => {
     formState: { errors },
   } = useForm();
 
-  const onRegister = (data) => {
-    console.log(data);
+  const navigate = useNavigate();
+
+  const onRegister = async (data) => {
+    const payload = {
+      username: data.username,
+      password: data.password,
+      email: data.email,
+      full_name: data.full_name ?? null,
+      role: 0,
+    };
+
+    try {
+      const response = await requestAPI({
+        method: "POST",
+        url: "/users/register",
+        data: payload,
+      });
+
+      if (response?.status === 201 || response?.status === 200) {
+        navigate("/login");
+      }
+    } catch (error) {
+      console.error("Register failed:", error);
+    }
   };
 
   return (
@@ -66,10 +89,39 @@ const Register = () => {
             >
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-primary px-1">
+                  Tên đăng nhập
+                </label>
+                <input
+                  {...register("username", {
+                    required: {
+                      value: true,
+                      message: "Tên đăng nhập không được để trống",
+                    },
+                    minLength: {
+                      value: 3,
+                      message: "Tên đăng nhập phải có ít nhất 3 ký tự",
+                    },
+                    maxLength: {
+                      value: 100,
+                      message: "Tên đăng nhập tối đa 100 ký tự",
+                    },
+                  })}
+                  type="text"
+                  placeholder="username"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
+                />
+                {errors.username && (
+                  <small className="text-red-500 text-sm">
+                    {errors.username.message}
+                  </small>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-primary px-1">
                   Họ và tên
                 </label>
                 <input
-                  {...register("fullname", {
+                  {...register("full_name", {
                     required: {
                       value: true,
                       message: "Họ và tên không được để trống",
@@ -78,14 +130,18 @@ const Register = () => {
                       value: 6,
                       message: "Họ và tên phải có ít nhất 6 ký tự",
                     },
+                    maxLength: {
+                      value: 255,
+                      message: "Họ và tên tối đa 255 ký tự",
+                    },
                   })}
                   type="text"
                   placeholder="Nguyễn Văn A"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
                 />
-                {errors.fullname && (
+                {errors.full_name && (
                   <small className="text-red-500 text-sm">
-                    {errors.fullname.message}
+                    {errors.full_name.message}
                   </small>
                 )}
               </div>
@@ -102,6 +158,10 @@ const Register = () => {
                     pattern: {
                       value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                       message: "Email không hợp lệ",
+                    },
+                    maxLength: {
+                      value: 150,
+                      message: "Email tối đa 150 ký tự",
                     },
                   })}
                   type="email"
@@ -128,6 +188,10 @@ const Register = () => {
                       minLength: {
                         value: 8,
                         message: "Mật khẩu phải có ít nhất 8 ký tự",
+                      },
+                      maxLength: {
+                        value: 255,
+                        message: "Mật khẩu tối đa 255 ký tự",
                       },
                     })}
                     type={showPassword ? "text" : "password"}
