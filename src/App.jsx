@@ -69,7 +69,7 @@ function App() {
           <Route path="products/edit" element={<EditProduct />} />
           <Route path="categories" element={<CategoryManagement />} />
           <Route path="categories/create" element={<CreateCategory />} />
-          <Route path="categories/edit" element={<EditCategory />} />
+          <Route path="categories/edit/:id" element={<EditCategory />} />
           <Route path="orders" element={<OrderManagement />} />
           <Route path="orders/detail" element={<OrderDetail />} />
           <Route path="payment-methods" element={<PaymentManagement />} />
