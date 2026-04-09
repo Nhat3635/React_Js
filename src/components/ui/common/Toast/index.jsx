@@ -4,12 +4,12 @@ const toastStyles = {
   success: {
     wrapper: 'border-green-200 bg-green-50 text-green-700',
     icon: 'bg-green-100 text-green-600',
-    title: 'Thanh cong',
+    title: 'Thành công',
   },
   error: {
     wrapper: 'border-red-200 bg-red-50 text-red-700',
     icon: 'bg-red-100 text-red-600',
-    title: 'That bai',
+    title: 'Thất bại',
   },
 };
 

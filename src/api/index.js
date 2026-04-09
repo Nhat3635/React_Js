@@ -15,8 +15,8 @@ const requestAPI = async ({ method = "GET", url = "", data = {} }) => {
         });
         return response;
     } catch (err) {
-        alert(err.response.data.message);
         console.log(err);
+        throw err;
     }
 };
 
