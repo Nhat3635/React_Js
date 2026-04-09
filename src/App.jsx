@@ -44,6 +44,7 @@ import AdminSettings from './components/pages/admin/settings';
 import BlogManagement from './components/pages/admin/blog';
 import CreateBlog from './components/pages/admin/blog/create';
 import EditBlog from './components/pages/admin/blog/edit';
+import NotFoundPage from './components/pages/not-found';
 
 function App() {
   return (
@@ -77,7 +78,7 @@ function App() {
           <Route path="categories/create" element={<CreateCategory />} />
           <Route path="categories/edit/:id" element={<EditCategory />} />
           <Route path="orders" element={<OrderManagement />} />
-          <Route path="orders/detail" element={<OrderDetail />} />
+          <Route path="orders/detail/:id" element={<OrderDetail />} />
           <Route path="payment-methods" element={<PaymentManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="users/edit" element={<EditUser />} />
@@ -87,6 +88,9 @@ function App() {
           <Route path="blogs/create" element={<CreateBlog />} />
           <Route path="blogs/edit/:id" element={<EditBlog />} />
         </Route>
+
+        <Route path="/404" element={<NotFoundPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
   );
