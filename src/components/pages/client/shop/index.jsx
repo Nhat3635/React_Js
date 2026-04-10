@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import requestAPI from "../../../../api";
 import "./style.css";
 
@@ -80,6 +80,7 @@ const formatStars = (rating = 0) => {
 
 const Shop = () => {
   const ITEMS_PER_PAGE = 9;
+  const location = useLocation();
 
   const [shopState, setShopState] = React.useState({
     products: [],
@@ -100,6 +101,19 @@ const Shop = () => {
   React.useEffect(() => {
     loadProducts();
   }, []);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const categoryFromUrl = params.get("keyword") || "";
+
+    updateShopState({
+      searchTerm: "",
+      activeCategory: categoryFromUrl || "Tất cả",
+      selectedBrands: [],
+      minRating: 0,
+      currentPage: 1,
+    });
+  }, [location.search, updateShopState]);
 
   React.useEffect(() => {
     updateShopState({ currentPage: 1 });
@@ -264,6 +278,147 @@ const Shop = () => {
     [totalPages, updateShopState],
   );
 
+  const categoryFilterItems = categories.map(function (category) {
+    const categoryId = `cat-${String(category)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}`;
+
+    return (
+      <li key={category} className="flex items-center">
+        <input
+          type="radio"
+          name="shop-category"
+          id={categoryId}
+          value={category}
+          checked={shopState.activeCategory === category}
+          onChange={onCategoryChange}
+          className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
+        />
+        <label
+          htmlFor={categoryId}
+          className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium"
+        >
+          {category}
+        </label>
+      </li>
+    );
+  });
+
+  const brandFilterItems = availableBrands.map(function (brand) {
+    const brandId = `brand-${String(brand)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")}`;
+
+    return (
+      <div key={brand} className="flex items-center group">
+        <input
+          type="checkbox"
+          id={brandId}
+          value={brand}
+          checked={shopState.selectedBrands.includes(brand)}
+          onChange={onBrandChange}
+          className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 cursor-pointer"
+        />
+        <label
+          htmlFor={brandId}
+          className="ml-3 text-sm text-textMuted group-hover:text-primary transition cursor-pointer font-medium italic"
+        >
+          {brand}
+        </label>
+      </div>
+    );
+  });
+
+  const skeletonCards = Array.from({ length: 6 }, function (_, index) {
+    return (
+      <div
+        key={index}
+        className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 animate-pulse"
+      >
+        <div className="h-56 bg-gray-100 rounded-2xl mb-4" />
+        <div className="h-3 w-24 bg-gray-100 rounded mb-3" />
+        <div className="h-5 w-3/4 bg-gray-100 rounded mb-3" />
+        <div className="h-4 w-20 bg-gray-100 rounded mb-6" />
+        <div className="flex items-center justify-between mt-auto">
+          <div className="h-8 w-28 bg-gray-100 rounded" />
+          <div className="w-10 h-10 bg-gray-100 rounded-full" />
+        </div>
+      </div>
+    );
+  });
+
+  const productCards = paginatedProducts.map(function (product) {
+    return (
+      <div
+        key={product.id}
+        className="bg-white rounded-3xl p-4 shadow-sm hover:shadow-xl transition flex flex-col group border border-gray-100 relative"
+      >
+        <Link
+          to={`/product-detail/${product.id}`}
+          className="h-56 bg-accent rounded-2xl mb-4 overflow-hidden relative block cursor-pointer"
+        >
+          <img
+            src={product.image}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+          />
+          <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition duration-300"></div>
+        </Link>
+        <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-bold italic">
+          {product.brand} / {product.category}
+        </div>
+        <Link
+          to={`/product-detail/${product.id}`}
+          className="text-lg font-semibold text-primary mb-1 hover:text-orange-500 transition"
+        >
+          {product.name}
+        </Link>
+        {Number(product.rating || 0) > 0 && (
+          <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">
+            {formatStars(product.rating)}
+          </div>
+        )}
+        <div className="flex items-center justify-between mt-auto">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 uppercase font-bold">
+              Giá từ
+            </span>
+            <span className="text-lg font-extrabold text-primary">
+              {formatPrice(product.price)}
+            </span>
+          </div>
+          <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">
+            +
+          </button>
+        </div>
+      </div>
+    );
+  });
+
+  const visiblePages = [];
+  const startPage = Math.max(1, shopState.currentPage - 1);
+  const endPage = Math.min(totalPages, shopState.currentPage + 1);
+  for (let page = startPage; page <= endPage; page += 1) {
+    visiblePages.push(page);
+  }
+
+  const paginationButtons = visiblePages.map(function (page) {
+    return (
+      <button
+        key={page}
+        onClick={onPageChange}
+        data-page={page}
+        className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition ${
+          shopState.currentPage === page
+            ? "bg-primary text-white shadow-md"
+            : "border border-gray-200 text-textMuted hover:bg-orange-50 hover:text-orange-500 hover:border-orange-500"
+        }`}
+      >
+        {page}
+      </button>
+    );
+  });
+
   return (
     <div>
       <section className="bg-primary text-white py-16 px-6 md:px-12 flex flex-col items-center justify-center text-center">
@@ -285,33 +440,7 @@ const Shop = () => {
             <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">
               Danh mục
             </h3>
-            <ul className="space-y-3">
-              {categories.map((category) => {
-                const categoryId = `cat-${String(category)
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-")}`;
-
-                return (
-                  <li key={category} className="flex items-center">
-                    <input
-                      type="radio"
-                      name="shop-category"
-                      id={categoryId}
-                      value={category}
-                      checked={shopState.activeCategory === category}
-                      onChange={onCategoryChange}
-                      className="filter-checkbox w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
-                    />
-                    <label
-                      htmlFor={categoryId}
-                      className="ml-3 text-sm text-textMuted cursor-pointer hover:text-primary transition font-medium"
-                    >
-                      {category}
-                    </label>
-                  </li>
-                );
-              })}
-            </ul>
+            <ul className="space-y-3">{categoryFilterItems}</ul>
           </div>
 
           <div>
@@ -319,32 +448,7 @@ const Shop = () => {
               Thương hiệu
             </h3>
 
-            <div className="grid grid-cols-1 gap-3">
-              {availableBrands.map((brand) => {
-                const brandId = `brand-${String(brand)
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-")}`;
-
-                return (
-                  <div key={brand} className="flex items-center group">
-                    <input
-                      type="checkbox"
-                      id={brandId}
-                      value={brand}
-                      checked={shopState.selectedBrands.includes(brand)}
-                      onChange={onBrandChange}
-                      className="w-4 h-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 cursor-pointer"
-                    />
-                    <label
-                      htmlFor={brandId}
-                      className="ml-3 text-sm text-textMuted group-hover:text-primary transition cursor-pointer font-medium italic"
-                    >
-                      {brand}
-                    </label>
-                  </div>
-                );
-              })}
-            </div>
+            <div className="grid grid-cols-1 gap-3">{brandFilterItems}</div>
           </div>
 
           <div>
@@ -492,23 +596,7 @@ const Shop = () => {
           </div>
 
           {shopState.isLoading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 6 }).map((index) => (
-                <div
-                  key={index}
-                  className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 animate-pulse"
-                >
-                  <div className="h-56 bg-gray-100 rounded-2xl mb-4" />
-                  <div className="h-3 w-24 bg-gray-100 rounded mb-3" />
-                  <div className="h-5 w-3/4 bg-gray-100 rounded mb-3" />
-                  <div className="h-4 w-20 bg-gray-100 rounded mb-6" />
-                  <div className="flex items-center justify-between mt-auto">
-                    <div className="h-8 w-28 bg-gray-100 rounded" />
-                    <div className="w-10 h-10 bg-gray-100 rounded-full" />
-                  </div>
-                </div>
-              ))}
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">{skeletonCards}</div>
           ) : shopState.error ? (
             <div className="rounded-3xl border border-red-100 bg-red-50 px-6 py-5 text-sm text-red-600">
               {shopState.error}
@@ -520,51 +608,7 @@ const Shop = () => {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {paginatedProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="bg-white rounded-3xl p-4 shadow-sm hover:shadow-xl transition flex flex-col group border border-gray-100 relative"
-                  >
-                    <Link
-                      to={`/product-detail/${product.id}`}
-                      className="h-56 bg-accent rounded-2xl mb-4 overflow-hidden relative block cursor-pointer"
-                    >
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                      />
-                      <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition duration-300"></div>
-                    </Link>
-                    <div className="text-xs text-textMuted mb-1 uppercase tracking-wider font-bold italic">
-                      {product.brand} / {product.category}
-                    </div>
-                    <Link
-                      to={`/product-detail/${product.id}`}
-                      className="text-lg font-semibold text-primary mb-1 hover:text-orange-500 transition"
-                    >
-                      {product.name}
-                    </Link>
-                    {Number(product.rating || 0) > 0 && (
-                      <div className="flex items-center space-x-1 mb-3 text-xs text-yellow-400">
-                        {formatStars(product.rating)}
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-400 uppercase font-bold">
-                          Giá từ
-                        </span>
-                        <span className="text-lg font-extrabold text-primary">
-                          {formatPrice(product.price)}
-                        </span>
-                      </div>
-                      <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                {productCards}
               </div>
 
               <div className="flex justify-center items-center space-x-2 mt-16 pt-8 border-t border-gray-100">
@@ -593,25 +637,7 @@ const Shop = () => {
                   </svg>
                 </button>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .slice(
-                    Math.max(0, shopState.currentPage - 2),
-                    Math.min(totalPages, shopState.currentPage + 1),
-                  )
-                  .map((page) => (
-                    <button
-                      key={page}
-                      onClick={onPageChange}
-                      data-page={page}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition ${
-                        shopState.currentPage === page
-                          ? "bg-primary text-white shadow-md"
-                          : "border border-gray-200 text-textMuted hover:bg-orange-50 hover:text-orange-500 hover:border-orange-500"
-                      }`}
-                    >
-                      {page}
-                    </button>
-                  ))}
+                {paginationButtons}
 
                 {totalPages > 3 && shopState.currentPage < totalPages - 1 && (
                   <span className="text-gray-400 px-2">...</span>
