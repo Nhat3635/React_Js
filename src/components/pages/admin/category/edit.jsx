@@ -160,12 +160,10 @@ const EditCategory = () => {
                                             message: 'Tên danh mục phải có ít nhất 2 ký tự',
                                         },
                                         validate: (value) => {
-                                            const isDuplicate = categoriesData.some(
-                                                (cat) =>
-                                                    cat.id !== categoryData.id &&
-                                                    cat.name.trim().toLowerCase() === value.trim().toLowerCase()
-                                            );
-                                            return !isDuplicate || 'Tên danh mục đã tồn tại, vui lòng chọn tên khác';
+                                            if (!value?.trim()) {
+                                                return 'Tên danh mục không được để trống';
+                                            }
+                                            return true;
                                         },
                                     })}
                                 />
