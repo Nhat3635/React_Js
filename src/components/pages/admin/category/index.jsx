@@ -1,6 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import Toast from "../../../ui/common/Toast";
+import DeleteModal from "../../../ui/common/DeleteModal";
+
 import requestAPI from "../../../../api";
 
 const stripHtml = (value = "") =>
@@ -12,6 +14,7 @@ const CategoryManagement = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [pendingDeleteId, setPendingDeleteId] = React.useState(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [toast, setToast] = React.useState({
     show: false,
     message: "",
@@ -57,6 +60,7 @@ const CategoryManagement = () => {
 
   const onDelete = async (id) => {
     try {
+      setIsDeleting(true);
       await requestAPI({
         method: "DELETE",
         url: `/categories/${id}`,
@@ -65,23 +69,12 @@ const CategoryManagement = () => {
         (Array.isArray(prev) ? prev : []).filter((item) => item.id !== id),
       );
       showToast("Xoa danh muc thanh cong");
+      setPendingDeleteId(null);
     } catch (err) {
       showToast(err.message || "Xoa danh muc that bai", "error");
+    } finally {
+      setIsDeleting(false);
     }
-  };
-
-  const requestDelete = (id) => {
-    setPendingDeleteId(id);
-  };
-
-  const cancelDelete = () => {
-    setPendingDeleteId(null);
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDeleteId) return;
-    await onDelete(pendingDeleteId);
-    setPendingDeleteId(null);
   };
 
   const filteredCategories = (
@@ -291,7 +284,7 @@ const CategoryManagement = () => {
                           </svg>
                         </Link>
                         <button
-                          onClick={() => requestDelete(item.id)}
+                          onClick={() => setPendingDeleteId(item.id)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
                         >
                           <svg
@@ -317,30 +310,14 @@ const CategoryManagement = () => {
         </div>
       </div>
 
-      {pendingDeleteId && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-primary">Xac nhan xoa danh muc</h3>
-            <p className="mt-2 text-sm text-gray-500">Ban co chac chan muon xoa danh muc nay khong?</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={cancelDelete}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50"
-              >
-                Huy
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600"
-              >
-                Xoa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteModal
+        isOpen={!!pendingDeleteId}
+        title="Xác nhận xóa danh mục"
+        message="Bạn có chắc chắn muốn xóa danh mục này không? Hành động này không thể hoàn tác."
+        onConfirm={() => onDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

@@ -56,9 +56,9 @@ const EditCategory = () => {
             const imageUrl = await uploadImageToServer(file, 'categories');
             setValue('image', imageUrl, { shouldValidate: true });
             setCategoryData((prev) => ({ ...prev, image: imageUrl }));
-            showToast('Tai anh thanh cong');
+            showToast('Tải ảnh thành công');
         } catch (err) {
-            showToast(err.message || 'Tai anh that bai', 'error');
+            showToast(err.message || 'Tải ảnh thất bại', 'error');
         } finally {
             setIsUploadingImage(false);
         }
@@ -76,7 +76,7 @@ const EditCategory = () => {
                 const data = response?.data?.data || response?.data || null;
 
                 if (!data) {
-                    throw new Error('Khong tim thay du lieu danh muc');
+                    throw new Error('Không tìm thấy danh mục');
                 }
 
                 setCategoryData({
@@ -94,7 +94,7 @@ const EditCategory = () => {
                     image: data.image || '',
                 });
             } catch (err) {
-                setLoadError(err.message || 'Khong the tai chi tiet danh muc');
+                setLoadError(err.message || 'Không thể tải chi tiết danh mục');
             } finally {
                 setIsLoading(false);
             }
@@ -121,17 +121,17 @@ const EditCategory = () => {
                 },
             });
 
-            showToast('Cap nhat danh muc thanh cong');
+            showToast('Cập nhật danh mục thành công');
             setTimeout(() => navigate('/admin/categories'), 500);
         } catch (err) {
-            showToast(err.message || 'Cap nhat danh muc that bai', 'error');
+            showToast(err.message || 'Cập nhật danh mục thất bại', 'error');
         } finally {
             setIsSubmitting(false);
         }
     };
 
     if (isLoading) {
-        return <div className="p-8 text-sm text-gray-500">Dang tai du lieu danh muc...</div>;
+        return <div className="p-8 text-sm text-gray-500">Đang tải dữ liệu danh mục...</div>;
     }
 
     if (loadError) {
@@ -155,7 +155,7 @@ const EditCategory = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button type="button" onClick={() => navigate('/admin/categories')} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
-                    <button disabled={isSubmitting || isUploadingImage} type="submit" form="editCategoryForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? 'Dang cap nhat...' : 'Cập nhật thay đổi'}</button>
+                    <button disabled={isSubmitting || isUploadingImage} type="submit" form="editCategoryForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? 'Đang cập nhật...' : 'Cập nhật thay đổi'}</button>
                 </div>
             </div>
 

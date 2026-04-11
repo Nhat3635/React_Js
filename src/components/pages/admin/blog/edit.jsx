@@ -177,7 +177,7 @@ const EditBlog = () => {
 
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => navigate("/admin/blogs")} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
-          <button disabled={isSubmitting || isUploadingImage} type="submit" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-blue-500 hover:bg-blue-600 transition disabled:opacity-60">
+          <button disabled={isSubmitting || isUploadingImage} type="submit" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange hover:bg-orange-600 transition disabled:opacity-60">
             {isSubmitting ? "Dang cap nhat..." : "Cập nhật bài viết"}
           </button>
         </div>

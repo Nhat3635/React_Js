@@ -42,9 +42,9 @@ const CreateBlog = () => {
       setIsUploadingImage(true);
       const imageUrl = await uploadImageToServer(file, "blogs");
       setValue("thumbnail", imageUrl, { shouldValidate: true });
-      showToast("Tai anh thanh cong");
+      showToast("Tải ảnh thành công");
     } catch (err) {
-      showToast(err.message || "Tai anh that bai", "error");
+      showToast(err.message || "Tải ảnh thất bại", "error");
     } finally {
       setIsUploadingImage(false);
     }
@@ -67,10 +67,10 @@ const CreateBlog = () => {
         },
       });
 
-      showToast("Them bai viet thanh cong");
+      showToast("Thêm bài viết thành công");
       setTimeout(() => navigate("/admin/blogs"), 500);
     } catch (err) {
-      showToast(err.message || "Them bai viet that bai", "error");
+      showToast(err.message || "Thêm bài viết thất bại", "error");
     } finally {
       setIsSubmitting(false);
     }

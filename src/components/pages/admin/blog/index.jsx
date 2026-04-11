@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
+import DeleteModal from "../../../ui/common/DeleteModal";
 
 const BLOG_CATEGORIES = ["Tin công nghệ", "Hướng dẫn", "Khuyến mãi", "Mẹo nội thất"];
 
@@ -12,6 +13,7 @@ const BlogManagement = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [pendingDeleteId, setPendingDeleteId] = React.useState(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [toast, setToast] = React.useState({ show: false, message: "", type: "success" });
 
   const showToast = React.useCallback((message, type = "success") => {
@@ -31,7 +33,7 @@ const BlogManagement = () => {
       const normalized = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : [];
       setBlogs(normalized);
     } catch (err) {
-      setError(err.message || "Khong the tai danh sach bai viet");
+      setError(err.message || "Không thể tải danh sách bài viết");
       setBlogs([]);
     } finally {
       setIsLoading(false);
@@ -44,11 +46,15 @@ const BlogManagement = () => {
 
   const onDelete = async (id) => {
     try {
+      setIsDeleting(true);
       await requestAPI({ method: "DELETE", url: `/blogs/${id}` });
       setBlogs((prev) => (Array.isArray(prev) ? prev : []).filter((item) => item.id !== id));
-      showToast("Xoa bai viet thanh cong");
+      showToast("Xóa bài viết thành công");
+      setPendingDeleteId(null);
     } catch (err) {
-      showToast(err.message || "Xoa bai viet that bai", "error");
+      showToast(err.message || "Xóa bài viết thất bại", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -133,7 +139,7 @@ const BlogManagement = () => {
             <tbody className="divide-y divide-gray-100">
               {isLoading && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-sm text-gray-500">Dang tai danh sach bai viet...</td>
+                  <td colSpan="7" className="p-8 text-center text-sm text-gray-500">Đang tải danh sách bài viết...</td>
                 </tr>
               )}
 
@@ -145,7 +151,7 @@ const BlogManagement = () => {
 
               {!isLoading && !error && filteredBlogs.length === 0 && (
                 <tr>
-                  <td colSpan="7" className="p-8 text-center text-sm text-gray-500">Khong co bai viet nao.</td>
+                  <td colSpan="7" className="p-8 text-center text-sm text-gray-500">Không có bài viết nào.</td>
                 </tr>
               )}
 
@@ -199,18 +205,14 @@ const BlogManagement = () => {
         </div>
       </div>
 
-      {pendingDeleteId && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-primary">Xac nhan xoa bai viet</h3>
-            <p className="mt-2 text-sm text-gray-500">Ban co chac chan muon xoa bai viet nay khong?</p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setPendingDeleteId(null)} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50">Huy</button>
-              <button type="button" onClick={async () => { await onDelete(pendingDeleteId); setPendingDeleteId(null); }} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-600">Xoa</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteModal
+        isOpen={!!pendingDeleteId}
+        title="Xác nhận xóa bài viết"
+        message="Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác."
+        onConfirm={() => onDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

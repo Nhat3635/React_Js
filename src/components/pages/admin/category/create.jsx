@@ -44,9 +44,9 @@ const CreateCategory = () => {
       setIsUploadingImage(true);
       const imageUrl = await uploadImageToServer(file, "categories");
       setValue("image", imageUrl, { shouldValidate: true });
-      showToast("Tai anh thanh cong");
+      showToast("Tải ảnh thành công");
     } catch (err) {
-      showToast(err.message || "Tai anh that bai", "error");
+      showToast(err.message || "Tải ảnh thất bại", "error");
     } finally {
       setIsUploadingImage(false);
     }
@@ -67,10 +67,10 @@ const CreateCategory = () => {
           image: data.image,
         }
       });
-      showToast("Them danh muc thanh cong");
+      showToast("Thêm danh mục thành công");
       setTimeout(() => navigate("/admin/categories"), 500);
     } catch (err) {
-      showToast(err.message || "Them danh muc that bai", "error");
+      showToast(err.message || "Thêm danh mục thất bại", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -123,7 +123,7 @@ const CreateCategory = () => {
               form="createCategoryForm"
               className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Dang luu..." : "Lưu danh mục"}
+              {isSubmitting ? "Đang lưu..." : "Lưu danh mục"}
             </button>
           </div>
         </div>
