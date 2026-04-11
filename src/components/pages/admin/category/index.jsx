@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import Toast from "../../../ui/common/Toast";
 import requestAPI from "../../../../api";
 
+const stripHtml = (value = "") =>
+  String(value).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
 const CategoryManagement = () => {
   const [categories, setCategories] = React.useState([]);
   const [searchText, setSearchText] = React.useState("");
@@ -238,7 +241,7 @@ const CategoryManagement = () => {
                     </td>
                     <td className="p-5">
                       <p className="text-xs text-gray-500 max-w-xs truncate">
-                        {item.description}
+                        {stripHtml(item.description) || "Khong co mo ta"}
                       </p>
                     </td>
                     <td className="p-5 text-center">
