@@ -8,7 +8,8 @@ const OrderDetail = () => {
     const { id } = useParams();
     const [orderData, setOrderData] = React.useState(null);
     const [isLoading, setIsLoading] = React.useState(true);
-    const [isCancelling, setIsCancelling] = React.useState(false);
+    const [isSaving, setIsSaving] = React.useState(false);
+    const [selectedStatus, setSelectedStatus] = React.useState('');
     const [loadError, setLoadError] = React.useState('');
     const [toast, setToast] = React.useState({ show: false, message: '', type: 'success' });
 
@@ -33,7 +34,7 @@ const OrderDetail = () => {
             normalized === 'cho xac nhan' ||
             normalized === 'chờ thanh toán'
         ) {
-            return 'Chờ xác nhận';
+            return 'Chờ thanh toán';
         }
 
         return 'Không xác định';
@@ -49,10 +50,29 @@ const OrderDetail = () => {
                 return 'bg-green-50 text-green-600 border-green-100';
             case 'Đã hủy':
                 return 'bg-red-50 text-red-600 border-red-100';
-            case 'Chờ xác nhận':
+            case 'Chờ thanh toán':
                 return 'bg-purple-50 text-purple-600 border-purple-100';
             default:
                 return 'bg-gray-50 text-gray-500 border-gray-100';
+        }
+    };
+
+    const statusOptions = ['Đang xử lý', 'Chờ thanh toán', 'Đang giao', 'Hoàn thành', 'Đã hủy'];
+
+    const toApiStatus = (status) => {
+        switch (status) {
+            case 'Đang xử lý':
+                return 'Processing';
+            case 'Chờ thanh toán':
+                return 'Pending';
+            case 'Đang giao':
+                return 'Shipped';
+            case 'Hoàn thành':
+                return 'Delivered';
+            case 'Đã hủy':
+                return 'Cancelled';
+            default:
+                return '';
         }
     };
 
@@ -179,6 +199,7 @@ const OrderDetail = () => {
 
                 const normalized = normalizeOrder(data);
                 setOrderData(normalized);
+                setSelectedStatus(normalized.status || 'Đang xử lý');
             } catch (err) {
                 const message = String(err?.message || '');
                 const isNotFoundError =
@@ -208,29 +229,55 @@ const OrderDetail = () => {
     const order = orderData;
     const displayedStatus = order?.status || 'Không xác định';
     const itemCount = Array.isArray(order?.items) ? order.items.length : 0;
-    const canCancelOrder = displayedStatus === 'Chờ xác nhận';
+    const canEditStatus = displayedStatus !== 'Hoàn thành' && displayedStatus !== 'Đã hủy';
+    const statusHint =
+        displayedStatus === 'Đã hủy'
+            ? 'Đơn hàng đã hủy nên không thể thay đổi trạng thái.'
+            : displayedStatus === 'Chờ thanh toán'
+                ? 'Đơn hàng chờ thanh toán không thể chuyển về Đang xử lý.'
+                : displayedStatus === 'Đang giao'
+                    ? 'Đang giao không thể chuyển về Đang xử lý hoặc Chờ thanh toán.'
+                    : 'Có thể cập nhật trạng thái tùy theo trạng thái hiện tại.';
 
-    const handleCancelOrder = async () => {
-        if (!order?.id || !canCancelOrder) {
+    React.useEffect(() => {
+        if (order?.status) {
+            setSelectedStatus(order.status);
+        }
+    }, [order?.status]);
+
+    const canChooseStatus = (targetStatus) => {
+        if (!canEditStatus) return false;
+        if (displayedStatus === 'Chờ thanh toán') {
+            return targetStatus !== 'Đang xử lý';
+        }
+        if (displayedStatus === 'Đang giao') {
+            return targetStatus !== 'Đang xử lý' && targetStatus !== 'Chờ thanh toán';
+        }
+
+        return true;
+    };
+
+    const handleSaveStatus = async () => {
+        if (!order?.id || !canEditStatus || !selectedStatus || selectedStatus === displayedStatus) {
             return;
         }
 
-        setIsCancelling(true);
+        setIsSaving(true);
         try {
             await requestAPI({
                 method: 'PUT',
                 url: `/orders/admin/detail/${order.id}`,
                 data: {
-                    status: 'Cancelled',
+                    status: toApiStatus(selectedStatus),
                 },
             });
 
-            setOrderData((prev) => (prev ? { ...prev, status: 'Đã hủy' } : prev));
-            showToast('Hủy đơn hàng thành công');
+            setOrderData((prev) => (prev ? { ...prev, status: selectedStatus } : prev));
+            showToast('Cập nhật trạng thái đơn hàng thành công');
         } catch (err) {
-            showToast(err.message || 'Không thể hủy đơn hàng', 'error');
+            showToast(err.message || 'Không thể cập nhật trạng thái đơn hàng', 'error');
         } finally {
-            setIsCancelling(false);
+            setIsSaving(false);
         }
     };
 
@@ -254,15 +301,6 @@ const OrderDetail = () => {
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
-                    {canCancelOrder && (
-                        <button
-                            onClick={handleCancelOrder}
-                            disabled={isCancelling}
-                            className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-red-500 shadow-[0_8px_16px_rgba(239,68,68,0.2)] hover:bg-red-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                            {isCancelling ? 'Đang hủy...' : 'Hủy đơn hàng'}
-                        </button>
-                    )}
                     <button 
                         onClick={() => navigate('/admin/orders')}
                         className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition"
@@ -287,6 +325,57 @@ const OrderDetail = () => {
             {!isLoading && !loadError && order && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                    <div className="bg-white rounded-[24px] p-8 shadow-soft border border-gray-50 space-y-6">
+                        <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+                            <span className="w-1.5 h-6 bg-brandOrange rounded-full"></span>
+                            Quản lý trạng thái
+                        </h2>
+
+                        {!canEditStatus && (
+                            <div className="p-4 rounded-xl bg-gray-50 border border-gray-100 text-sm text-gray-500">
+                                Đơn hàng đã hủy hoặc đã hoàn thành nên không thể sửa trạng thái.
+                            </div>
+                        )}
+
+                        {canEditStatus && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {statusOptions.map((status) => {
+                                    const disabled = !canChooseStatus(status);
+                                    const active = selectedStatus === status;
+
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => !disabled && setSelectedStatus(status)}
+                                            disabled={disabled}
+                                            className={`px-4 py-3 rounded-xl text-sm font-bold transition-all border text-left ${
+                                                active
+                                                    ? 'bg-primary text-white border-primary shadow-md'
+                                                    : disabled
+                                                        ? 'bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed'
+                                                        : 'bg-white text-gray-500 border-gray-100 hover:border-brandOrange hover:text-brandOrange'
+                                            }`}
+                                        >
+                                            {status}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-gray-50">
+                            <p className="text-xs text-gray-400 font-medium">{statusHint}</p>
+                            <button
+                                onClick={handleSaveStatus}
+                                disabled={!canEditStatus || isSaving || selectedStatus === displayedStatus}
+                                className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {isSaving ? 'Đang lưu...' : 'Lưu trạng thái'}
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="bg-white rounded-[24px] shadow-soft border border-gray-50 overflow-hidden px-8 py-8 space-y-6">
                         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <h2 className="text-lg font-bold text-primary">Danh sách sản phẩm</h2>
