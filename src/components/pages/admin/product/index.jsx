@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
+import DeleteConfirmationModal from "../../../ui/common/DeleteModal";
 
 const ProductManagement = () => {
   const [products, setProducts] = React.useState([]);
@@ -12,6 +13,7 @@ const ProductManagement = () => {
   const [isLoading, setIsLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [pendingDeleteId, setPendingDeleteId] = React.useState(null);
+  const [isDeleting, setIsDeleting] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
   const ITEMS_PER_PAGE = 10;
   const [toast, setToast] = React.useState({
@@ -73,14 +75,18 @@ const ProductManagement = () => {
 
   const onDelete = async (id) => {
     try {
+      setIsDeleting(true);
       await requestAPI({
         method: "DELETE",
         url: `/products/${id}`,
       });
       setProducts((prev) => prev.filter((item) => item.id !== id));
       showToast("Xóa sản phẩm thành công");
+      setPendingDeleteId(null);
     } catch (err) {
       showToast(err.message || "Xóa sản phẩm thất bại", "error");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -402,40 +408,14 @@ const ProductManagement = () => {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {pendingDeleteId && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/35 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500 mb-5">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-bold text-primary">Xác nhận xóa sản phẩm</h3>
-            <p className="mt-3 text-sm text-gray-500 leading-relaxed">
-              Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác và sẽ xóa tất cả dữ liệu liên quan.
-            </p>
-            <div className="mt-8 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setPendingDeleteId(null)}
-                className="rounded-xl border border-gray-200 px-6 py-2.5 text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await onDelete(pendingDeleteId);
-                  setPendingDeleteId(null);
-                }}
-                className="rounded-xl bg-red-500 px-6 py-2.5 text-sm font-bold text-white hover:bg-red-600 shadow-lg shadow-red-200 transition-all"
-              >
-                Xác nhận xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteConfirmationModal
+        isOpen={!!pendingDeleteId}
+        title="Xác nhận xóa sản phẩm"
+        message="Bạn có chắc chắn muốn xóa sản phẩm này không? Hành động này không thể hoàn tác và sẽ xóa tất cả dữ liệu liên quan."
+        onConfirm={() => onDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+        isLoading={isDeleting}
+      />
     </div>
   );
 };
