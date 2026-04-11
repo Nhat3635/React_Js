@@ -5,6 +5,7 @@ import { CKEditor } from '@ckeditor/ckeditor5-react';
 import ClassicEditor from '@ckeditor/ckeditor5-build-classic';
 import Toast from '../../../ui/common/Toast';
 import requestAPI from '../../../../api';
+import { uploadImageToServer } from '../../../../api/upload';
 
 const EditCategory = () => {
     const navigate = useNavigate();
@@ -18,6 +19,7 @@ const EditCategory = () => {
     });
     const [isLoading, setIsLoading] = React.useState(true);
     const [isSubmitting, setIsSubmitting] = React.useState(false);
+    const [isUploadingImage, setIsUploadingImage] = React.useState(false);
     const [loadError, setLoadError] = React.useState('');
     const [toast, setToast] = React.useState({ show: false, message: '', type: 'success' });
 
@@ -41,8 +43,26 @@ const EditCategory = () => {
             name: '',
             description: '',
             status: '1',
+            image: '',
         },
     });
+
+    const onUploadCategoryImage = async (event) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setIsUploadingImage(true);
+            const imageUrl = await uploadImageToServer(file, 'categories');
+            setValue('image', imageUrl, { shouldValidate: true });
+            setCategoryData((prev) => ({ ...prev, image: imageUrl }));
+            showToast('Tai anh thanh cong');
+        } catch (err) {
+            showToast(err.message || 'Tai anh that bai', 'error');
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
 
     React.useEffect(() => {
         const loadCategory = async () => {
@@ -71,6 +91,7 @@ const EditCategory = () => {
                     name: data.name || '',
                     description: data.description || '',
                     status: String(Number(data.status) === 1 ? 1 : 0),
+                    image: data.image || '',
                 });
             } catch (err) {
                 setLoadError(err.message || 'Khong the tai chi tiet danh muc');
@@ -96,6 +117,7 @@ const EditCategory = () => {
                 status: Number(data.status),
                 parent_id: categoryData.parent_id || null,
                 product_count: categoryData.product_count || 0,
+                image: data.image || categoryData.image || '',
                 },
             });
 
@@ -133,7 +155,7 @@ const EditCategory = () => {
                 </div>
                 <div className="flex items-center gap-3">
                     <button type="button" onClick={() => navigate('/admin/categories')} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-500 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
-                    <button disabled={isSubmitting} type="submit" form="editCategoryForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? 'Dang cap nhat...' : 'Cập nhật thay đổi'}</button>
+                    <button disabled={isSubmitting || isUploadingImage} type="submit" form="editCategoryForm" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange shadow-[0_8px_16px_rgba(249,115,22,0.2)] hover:bg-orange-600 transition disabled:opacity-60 disabled:cursor-not-allowed">{isSubmitting ? 'Dang cap nhat...' : 'Cập nhật thay đổi'}</button>
                 </div>
             </div>
 
@@ -195,6 +217,15 @@ const EditCategory = () => {
                                 <span className="text-white text-xs font-bold font-bold">Thay đổi ảnh</span>
                             </div>
                         </div>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={onUploadCategoryImage}
+                            className="w-full px-4 py-2.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none text-sm"
+                        />
+                        <input type="hidden" {...register('image', { required: 'Vui lòng tải ảnh' })} />
+                        {isUploadingImage && <small className="text-blue-500 text-sm">Dang upload anh...</small>}
+                        {errors.image && <small className="text-red-500 text-sm">{errors.image.message}</small>}
                     </div>
                     <div className="bg-white rounded-[24px] p-8 shadow-soft border border-gray-50 space-y-4">
                         <h2 className="text-lg font-bold text-primary">Trạng thái h.động</h2>

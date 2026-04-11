@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { CKEditor } from "@ckeditor/ckeditor5-react";
 import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
 import requestAPI from "../../../../api";
+import { uploadImageToServer } from "../../../../api/upload";
 import Toast from "../../../ui/common/Toast";
 
 const BLOG_CATEGORIES = ["Tin công nghệ", "Hướng dẫn", "Khuyến mãi", "Mẹo nội thất"];
@@ -11,6 +12,7 @@ const BLOG_CATEGORIES = ["Tin công nghệ", "Hướng dẫn", "Khuyến mãi", 
 const CreateBlog = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isUploadingImage, setIsUploadingImage] = React.useState(false);
   const [toast, setToast] = React.useState({ show: false, message: "", type: "success" });
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
@@ -31,6 +33,22 @@ const CreateBlog = () => {
   const closeToast = React.useCallback(() => {
     setToast((prev) => ({ ...prev, show: false }));
   }, []);
+
+  const onUploadThumbnail = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingImage(true);
+      const imageUrl = await uploadImageToServer(file, "blogs");
+      setValue("thumbnail", imageUrl, { shouldValidate: true });
+      showToast("Tai anh thanh cong");
+    } catch (err) {
+      showToast(err.message || "Tai anh that bai", "error");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
 
   const onCreateBlog = async (data) => {
     try {
@@ -76,7 +94,7 @@ const CreateBlog = () => {
 
         <div className="flex items-center gap-3">
           <button type="button" onClick={() => navigate("/admin/blogs")} className="px-6 py-2.5 rounded-xl text-sm font-semibold text-gray-400 bg-white border border-gray-100 shadow-soft hover:bg-gray-50 transition">Hủy bỏ</button>
-          <button disabled={isSubmitting} type="submit" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange hover:bg-orange-600 transition disabled:opacity-60">
+          <button disabled={isSubmitting || isUploadingImage} type="submit" className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-brandOrange hover:bg-orange-600 transition disabled:opacity-60">
             {isSubmitting ? "Dang luu..." : "Lưu bài viết"}
           </button>
         </div>
@@ -119,13 +137,15 @@ const CreateBlog = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Ảnh đại diện (Thumbnail URL)</label>
+                <label className="text-xs font-bold text-primary uppercase tracking-wider pl-1">Ảnh đại diện</label>
                 <input
-                  type="text"
-                  placeholder="https://..."
-                  {...register("thumbnail", { required: "Vui lòng nhập URL ảnh" })}
-                  className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none"
+                  type="file"
+                  accept="image/*"
+                  onChange={onUploadThumbnail}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-100 bg-secondary/30 focus:bg-white focus:outline-none text-sm"
                 />
+                <input type="hidden" {...register("thumbnail", { required: "Vui lòng tải ảnh" })} />
+                {isUploadingImage && <small className="text-blue-500 text-sm">Dang upload anh...</small>}
                 {errors.thumbnail && <small className="text-red-500 text-sm">{errors.thumbnail.message}</small>}
               </div>
 
