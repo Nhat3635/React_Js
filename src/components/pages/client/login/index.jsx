@@ -1,17 +1,31 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import requestAPI from "../../../../api";
+import Toast from "../../../ui/common/Toast";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
+
+  // Check if there's a message from register page
+  useEffect(() => {
+    if (location.state?.message) {
+      setToast({
+        show: true,
+        message: location.state.message,
+        type: location.state.type || "success",
+      });
+    }
+  }, [location.state]);
 
   const onLogin = async (data) => {
     try {
@@ -26,14 +40,22 @@ const Login = () => {
 
       if (response?.status === 200 && response?.data?.token) {
         localStorage.setItem("token", response.data.token);
-        navigate("/");
+        setToast({ show: true, message: "Đăng nhập thành công!", type: "success" });
+        setTimeout(() => navigate("/"), 1000);
       }
     } catch (error) {
-      console.error("Login failed:", error);
+      const msg = error?.response?.data?.message || "Đăng nhập thất bại!";
+      setToast({ show: true, message: msg, type: "error" });
     }
   };
   return (
     <div>
+      <Toast
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast({ ...toast, show: false })}
+      />
       <main className="mt-20 flex-grow flex items-center justify-center p-6 md:py-16">
         <div className="w-full max-w-4xl bg-white rounded-[32px] box-shadow-soft border border-gray-100 shadow-[0_20px_50px_rgb(0,0,0,0.08)] overflow-hidden flex flex-col lg:flex-row lg:min-h-[550px]">
           {/* Left Side: Image Visual */}

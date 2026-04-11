@@ -5,23 +5,67 @@ import requestAPI from "../../../../api";
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
+  const [serverErrors, setServerErrors] = useState({});
+  const [isChecking, setIsChecking] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    watch,
+    getValues,
   } = useForm();
 
   const navigate = useNavigate();
+  const watchedFields = watch();
+
+  // Check email exists
+  const onEmailBlur = async () => {
+    const email = getValues("email");
+    if (!email) return;
+
+    setIsChecking(true);
+    try {
+      const response = await requestAPI({
+        method: "POST",
+        url: "/users/check-email",
+        data: { email },
+      });
+      // If response is successful without error, email is available
+      setServerErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors.email;
+        return newErrors;
+      });
+    } catch (error) {
+      const errorData = error?.response?.data;
+      const errorMessage = errorData?.message || "Email đã tồn tại!";
+      if (errorMessage.includes("Email") || errorMessage.includes("email")) {
+        setServerErrors((prev) => ({
+          ...prev,
+          email: errorMessage,
+        }));
+      }
+    } finally {
+      setIsChecking(false);
+    }
+  };
 
   const onRegister = async (data) => {
+    // Clear server errors when submitting
+    setServerErrors({});
+
     const payload = {
       username: data.username,
       password: data.password,
       email: data.email,
-      full_name: data.full_name ?? null,
       role: 0,
     };
+    
+    // Only add full_name if it's provided
+    if (data.full_name) {
+      payload.full_name = data.full_name;
+    }
 
     try {
       const response = await requestAPI({
@@ -31,10 +75,37 @@ const Register = () => {
       });
 
       if (response?.status === 201 || response?.status === 200) {
-        navigate("/login");
+        // Navigate to login with success message
+        navigate("/login", {
+          state: {
+            message: "Đăng ký thành công! Vui lòng đăng nhập",
+            type: "success",
+          },
+        });
       }
     } catch (error) {
-      console.error("Register failed:", error);
+      const errorData = error?.response?.data;
+      const errorMessage = errorData?.message || errorData?.error || error.message;
+      
+      // Handle field-specific errors from server
+      if (errorData?.errors && typeof errorData.errors === 'object') {
+        setServerErrors(errorData.errors);
+      } else if (errorMessage) {
+        // Map error messages to specific fields
+        const newErrors = {};
+        
+        if (errorMessage.includes('Email') || errorMessage.includes('email')) {
+          newErrors.email = errorMessage;
+        } else if (errorMessage.includes('Username') || errorMessage.includes('username')) {
+          newErrors.username = errorMessage;
+        } else if (errorMessage.includes('Password') || errorMessage.includes('password')) {
+          newErrors.password = errorMessage;
+        } else {
+          newErrors.general = errorMessage;
+        }
+        
+        setServerErrors(newErrors);
+      }
     }
   };
 
@@ -115,6 +186,11 @@ const Register = () => {
                     {errors.username.message}
                   </small>
                 )}
+                {serverErrors.username && (
+                  <small className="text-red-500 text-sm">
+                    {serverErrors.username}
+                  </small>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-primary px-1">
@@ -144,6 +220,11 @@ const Register = () => {
                     {errors.full_name.message}
                   </small>
                 )}
+                {serverErrors.full_name && (
+                  <small className="text-red-500 text-sm">
+                    {serverErrors.full_name}
+                  </small>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-semibold text-primary px-1">
@@ -164,6 +245,7 @@ const Register = () => {
                       message: "Email tối đa 150 ký tự",
                     },
                   })}
+                  onBlur={onEmailBlur}
                   type="email"
                   placeholder="example@email.com"
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 bg-secondary transition text-sm"
@@ -171,6 +253,11 @@ const Register = () => {
                 {errors.email && (
                   <small className="text-red-500 text-sm">
                     {errors.email.message}
+                  </small>
+                )}
+                {serverErrors.email && (
+                  <small className="text-red-500 text-sm">
+                    {serverErrors.email}
                   </small>
                 )}
               </div>
@@ -202,6 +289,11 @@ const Register = () => {
                   {errors.password && (
                     <small className="text-red-500 text-sm">
                       {errors.password.message}
+                    </small>
+                  )}
+                  {serverErrors.password && (
+                    <small className="text-red-500 text-sm">
+                      {serverErrors.password}
                     </small>
                   )}
 
