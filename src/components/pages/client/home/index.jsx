@@ -1,4 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { Link } from "react-router-dom";
 import requestAPI from "../../../../api";
 import "./style.css";
@@ -11,29 +17,18 @@ const normalizeHomeProducts = (payload) => {
       : [];
 
   return rawItems.map((item, index) => {
-    const priceValue =
-      item.base_price ??
-      item.price ??
-      item.selling_price ??
-      item.sale_price ??
-      item.current_price ??
-      0;
-
+    const priceValue = item.base_price ?? item.price ?? 0;
     return {
-      id: item.id ?? item._id ?? index,
-      name: item.name ?? item.title ?? item.product_name ?? "Sản phẩm",
-      category:
-        item.category_name ??
-        item.category ??
-        item.category_title ??
-        "Nội thất",
-      image:
-        item.featured_image ??
-        item.image ??
-        item.thumbnail ??
-        "https://placehold.co/600x600?text=PRODUCT",
-      price: Number(String(priceValue).replace(/[^\d]/g, "")) || 0,
-      rating: Number(item.rating ?? item.review_score ?? 0),
+      id: item.id ?? index,
+      name: item.name ?? "Sản phẩm không tên",
+      category_id: item.category_id,
+      category_name: item.category_name ?? "Nội thất",
+      image: item.image
+        ? `http://localhost:3000/uploads/products/${item.image}`
+        : "https://placehold.co/600x600?text=NO+IMAGE",
+      price: Number(priceValue) || 0,
+      rating: Number(item.rating ?? 0),
+      status: item.status,
     };
   });
 };
@@ -46,31 +41,36 @@ const formatPrice = (price = 0) => {
 const formatStars = (rating = 0) => {
   const safeRating = Math.max(0, Math.min(5, Number(rating) || 0));
   const percentage = (safeRating / 5) * 100;
-
   return (
-    <div className="star-rating">
-      <div className="stars-outer">
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
+    <div className="flex items-center space-x-1">
+      <div className="relative inline-block text-lg">
+        <div className="flex text-gray-200">
+          {[...Array(5)].map((_, i) => (
+            <i key={i} className="bi bi-star-fill"></i>
+          ))}
+        </div>
+        <div
+          className="flex text-yellow-400 absolute top-0 left-0 overflow-hidden whitespace-nowrap"
+          style={{ width: `${percentage}%` }}
+        >
+          {[...Array(5)].map((_, i) => (
+            <i key={i} className="bi bi-star-fill"></i>
+          ))}
+        </div>
       </div>
-      <div
-        className="stars-inner"
-        style={{ width: `${percentage}%` }}
-      >
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-      </div>
+      <span className="text-xs text-gray-400 ml-1">({safeRating})</span>
     </div>
   );
 };
 
 const Home = () => {
+  const categories = [
+    { id: "chair", name: "Ghế", dbId: 8 },
+    { id: "beds", name: "Giường", dbId: 5 },
+    { id: "sofa", name: "Sofa", dbId: 1 },
+    { id: "lamp", name: "Gương/Đèn", dbId: 10 },
+  ];
+
   const [homeState, setHomeState] = useState({
     activeCategory: "chair",
     products: [],
@@ -78,22 +78,49 @@ const Home = () => {
     productError: "",
   });
 
-  const categories = [
-    { id: "chair", name: "Ghế" },
-    { id: "beds", name: "Giường" },
-    { id: "sofa", name: "Sofa" },
-    { id: "lamp", name: "Đèn" },
-  ];
+  const productCarouselRef = useRef(null);
+  const scrollAmount = 350;
 
-  const updateHomeState = React.useCallback((partialState) => {
+  const updateHomeState = useCallback((partialState) => {
     setHomeState((prev) => ({ ...prev, ...partialState }));
   }, []);
 
-  const productCarouselRef = useRef(null);
-  const testiCarouselRef = useRef(null);
-  const scrollAmount = 350;
+  const loadHomeProducts = async () => {
+    try {
+      updateHomeState({ isLoadingProducts: true, productError: "" });
+      const response = await requestAPI({
+        method: "GET",
+        url: "/products/list",
+      });
+      const allProducts = normalizeHomeProducts(response?.data);
+      updateHomeState({ products: allProducts.filter((p) => p.status === 1) });
+    } catch (error) {
+      updateHomeState({
+        products: [],
+        productError: "Không thể kết nối đến máy chủ",
+      });
+    } finally {
+      updateHomeState({ isLoadingProducts: false });
+    }
+  };
 
-  const scrollProducts = (direction) => {
+  useEffect(() => {
+    loadHomeProducts();
+  }, []);
+  
+  const filteredProducts = useMemo(() => {
+    const currentCat = categories.find(
+      (c) => c.id === homeState.activeCategory,
+    );
+    if (!currentCat) return [];
+
+    const matched = homeState.products.filter(
+      (item) => Number(item.category_id) === currentCat.dbId,
+    );
+    return matched.length > 0 ? matched.slice(0, 8) : [];
+  }, [homeState.activeCategory, homeState.products]);
+
+  const scroll = (direction) => {
     if (productCarouselRef.current) {
       productCarouselRef.current.scrollBy({
         left: direction * scrollAmount,
@@ -102,144 +129,61 @@ const Home = () => {
     }
   };
 
-  const scrollTestimonials = (direction) => {
-    if (testiCarouselRef.current) {
-      testiCarouselRef.current.scrollBy({
-        left: direction * scrollAmount,
-        behavior: "smooth",
-      });
-    }
-  };
-
-  React.useEffect(() => {
-    loadHomeProducts();
-  }, [updateHomeState]);
-
-  const loadHomeProducts = async () => {
-    try {
-      updateHomeState({ isLoadingProducts: true, productError: "" });
-        console.log("Fetching products for home page...");
-      const response = await requestAPI({
-        method: "GET",
-        url: "/products/list",
-      });
-
-      updateHomeState({ products: normalizeHomeProducts(response?.data) });
-    } catch (error) {
-      updateHomeState({
-        products: [],
-        productError: error?.message || "Không tải được sản phẩm",
-      });
-    } finally {
-      updateHomeState({ isLoadingProducts: false });
-    }
-  };
-
-  const categoryKeywords = React.useMemo(
-    () => ({
-      chair: ["ghế", "chair"],
-      beds: ["giường", "bed"],
-      sofa: ["sofa"],
-      lamp: ["đèn", "lamp", "light"],
-    }),
-    [],
-  );
-
-  const filteredBestSellingProducts = React.useMemo(() => {
-    const keywords = categoryKeywords[homeState.activeCategory] || [];
-    const source = Array.isArray(homeState.products) ? homeState.products : [];
-
-    const matched = source.filter((item) => {
-      const text = `${item.name} ${item.category}`.toLowerCase();
-      return keywords.some((keyword) => text.includes(keyword));
-    });
-
-    return (matched.length > 0 ? matched : source).slice(0, 8);
-  }, [categoryKeywords, homeState.activeCategory, homeState.products]);
-
   return (
-    <main>
-      {/* 1. Hero Content & Background Image (Lưu ý Header đã được tách ra ngoài nên chỉ còn phần hình nền) */}
-      <div className="relative w-full h-[700px] md:h-[800px] bg-primary overflow-hidden">
-        <div className="absolute inset-0 w-full h-full">
+    <main className="bg-white">
+      {/* 1. HERO SECTION (GIỮ NGUYÊN GIAO DIỆN CỦA BẠN) */}
+      <section className="relative w-full h-[700px] md:h-[800px] overflow-hidden">
+        <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
-            alt="Modern Minimalist Living Room"
-            className="w-full h-full object-cover opacity-90 hero-image-zoom"
+            src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1920&q=80"
+            className="w-full h-full object-cover hero-image-zoom"
+            alt="Banner"
           />
-          <div className="absolute inset-0 bg-black/40"></div>
+          <div className="absolute inset-0 bg-black/30"></div>
         </div>
-
-        <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 max-w-7xl mx-auto pt-20">
-          <h1 className="text-5xl md:text-7xl font-semibold leading-tight mb-6 text-white max-w-4xl tracking-tight">
-            Làm Cho Không Gian Của Bạn Tối Giản & Hiện Đại Hơn
+        <div className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4 pt-20">
+          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 drop-shadow-lg">
+            Nội Thất Tối Giản & Hiện Đại
           </h1>
-          <p className="text-lg md:text-xl text-gray-200 mb-10 leading-relaxed max-w-2xl font-light">
-            Biến căn phòng của bạn với SmartLiving trở nên tối giản và hiện đại
-            hơn một cách dễ dàng và nhanh chóng.
+          <p className="text-gray-200 text-lg md:text-xl mb-10 max-w-2xl font-light">
+            Nâng tầm không gian sống cùng SmartLiving - Nơi hội tụ tinh hoa
+            thiết kế.
           </p>
-
-          {/* Search Bar */}
-          <div className="flex items-center w-full max-w-lg bg-white/20 backdrop-blur-md rounded-full shadow-lg p-2 border border-white/30 transition hover:bg-white/30">
+          <div className="flex items-center w-full max-w-lg bg-white/20 backdrop-blur-md rounded-full p-2 border border-white/30">
             <input
               type="text"
-              placeholder="Tìm kiếm nội thất"
-              className="flex-grow px-6 py-3 text-white focus:outline-none placeholder-gray-200 bg-transparent text-sm md:text-base"
+              placeholder="Tìm kiếm nội thất..."
+              className="flex-grow px-6 bg-transparent text-white focus:outline-none placeholder-white/70"
             />
-            <button className="bg-orange-500 text-white w-12 h-12 rounded-full flex justify-center items-center hover:bg-orange-600 transition shadow-md flex-shrink-0">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+            <button className="bg-orange-500 text-white w-12 h-12 rounded-full flex justify-center items-center hover:bg-orange-600 transition">
+              <i className="bi bi-search"></i>
             </button>
           </div>
         </div>
+      </section>
 
-        {/* Hotspots */}
-        <div className="absolute z-20 bottom-1/4 left-1/3 hotspot-container cursor-pointer group">
-          <div className="w-5 h-5 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center relative shadow-lg">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-75 animate-ping"></span>
-            <div className="absolute w-2.5 h-2.5 bg-orange-500 rounded-full"></div>
+      {/* 2. BEST SELLING SECTION (PHẦN BẠN CẦN LÀM ĐỦ) */}
+      <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto bg-secondary/30 rounded-[64px] my-10">
+        <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+          <div className="max-w-md">
+            <h2 className="text-4xl md:text-5xl font-bold text-primary mb-4">
+              Sản phẩm bán chạy
+            </h2>
+            <p className="text-gray-500">
+              Những thiết kế được yêu thích nhất bởi khách hàng của SmartLiving
+              trong tháng này.
+            </p>
           </div>
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-primary text-xs font-semibold px-3 py-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Sofa nhung cam
-          </div>
-        </div>
-        <div className="absolute z-20 top-[40%] right-[30%] hotspot-container cursor-pointer group">
-          <div className="w-5 h-5 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center relative shadow-lg">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-white opacity-75 animate-ping"></span>
-            <div className="absolute w-2.5 h-2.5 bg-orange-500 rounded-full"></div>
-          </div>
-          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white text-primary text-xs font-semibold px-3 py-1.5 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-            Đèn đứng hiện đại
-          </div>
-        </div>
-      </div>
 
-      {/* 2. Best Selling Product Section */}
-      <section className="bg-secondary py-20 px-6 md:px-12 max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-semibold text-primary mb-6 md:mb-0">
-            Sản phẩm bán chạy nhất
-          </h2>
-          <div className="flex space-x-2 md:space-x-8 overflow-x-auto bg-gray-100 p-2 border border-gray-200 rounded-full category-filters">
+          <div className="flex space-x-2 bg-gray-100 p-1.5 rounded-full border border-gray-200 overflow-x-auto no-scrollbar">
             {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => updateHomeState({ activeCategory: cat.id })}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                className={`px-8 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${
                   homeState.activeCategory === cat.id
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-textMuted hover:text-primary bg-transparent"
+                    ? "bg-white text-primary shadow-md"
+                    : "text-gray-500 hover:text-primary"
                 }`}
               >
                 {cat.name}
@@ -248,126 +192,108 @@ const Home = () => {
           </div>
         </div>
 
-        <div className="relative">
-          {/* Products Carousel */}
+        <div className="relative group">
           <div
             ref={productCarouselRef}
-            className="flex gap-8 overflow-x-hidden scroll-smooth py-4 product-carousel"
+            className="flex gap-8 overflow-x-hidden scroll-smooth py-6"
           >
-            {homeState.isLoadingProducts && (
-              <div className="w-full text-center py-10 text-textMuted">
-                Đang tải sản phẩm...
-              </div>
-            )}
-
-            {!homeState.isLoadingProducts && homeState.productError && (
-              <div className="w-full text-center py-10 text-red-500">
-                {homeState.productError}
-              </div>
-            )}
-
-            {!homeState.isLoadingProducts &&
-              !homeState.productError &&
-              filteredBestSellingProducts.length === 0 && (
-                <div className="w-full text-center py-10 text-textMuted">
-                  Chưa có sản phẩm để hiển thị.
-                </div>
-              )}
-
-            {!homeState.isLoadingProducts &&
-              !homeState.productError &&
-              filteredBestSellingProducts.map((product) => (
+            {homeState.isLoadingProducts ? (
+              [...Array(4)].map((_, i) => (
+                <div
+                  key={i}
+                  className="min-w-[300px] h-[450px] bg-gray-200 animate-pulse rounded-3xl"
+                ></div>
+              ))
+            ) : filteredProducts.length > 0 ? (
+              filteredProducts.map((product) => (
                 <div
                   key={product.id}
-                  className="min-w-[280px] md:min-w-[320px] bg-white rounded-3xl p-5 shadow-sm hover:shadow-xl transition flex flex-col group border border-gray-100"
+                  className="min-w-[300px] md:min-w-[340px] bg-white rounded-[32px] p-6 shadow-sm hover:shadow-2xl transition-all duration-500 border border-gray-50 flex flex-col group/card"
                 >
-                    <Link
-                      to={`/product-detail/${product.id}`}
-                      className="block"
-                    >
-                      <div className="h-64 bg-accent rounded-2xl mb-6 overflow-hidden relative">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
-                        />
-                      </div>
-                    </Link>
-                  <div className="text-sm text-textMuted mb-2 uppercase tracking-wider font-medium">
-                    {product.category}
-                  </div>
                   <Link
                     to={`/product-detail/${product.id}`}
-                    className="text-xl font-semibold text-primary mb-2 line-clamp-2 hover:text-orange-500 transition"
+                    className="relative h-72 bg-accent rounded-2xl mb-6 overflow-hidden"
                   >
-                    {product.name}
-                  </Link>
-                  {Number(product.rating || 0) > 0 && (
-                    <div className="flex items-center space-x-1 mb-4">
-                      <span className="text-yellow-400">
-                        {formatStars(product.rating)}
-                      </span>
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover/card:scale-110"
+                    />
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-primary">
+                      New Arrival
                     </div>
-                  )}
-                  <div className="flex items-center justify-between mt-auto">
-                    <span className="text-2xl font-bold text-primary">
-                      {formatPrice(product.price)}
+                  </Link>
+
+                  <div className="flex flex-col flex-grow">
+                    <span className="text-xs text-orange-500 font-bold uppercase tracking-widest mb-2">
+                      {product.category_name}
                     </span>
-                    <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-black transition add-to-cart group-hover:rotate-90 duration-300">
-                      +
-                    </button>
+                    <Link
+                      to={`/product-detail/${product.id}`}
+                      className="text-xl font-bold text-primary mb-3 line-clamp-1 hover:text-orange-500 transition"
+                    >
+                      {product.name}
+                    </Link>
+                    <div className="mb-4">{formatStars(product.rating)}</div>
+
+                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
+                      <span className="text-2xl font-black text-primary">
+                        {formatPrice(product.price)}
+                      </span>
+                      <button className="w-12 h-12 rounded-2xl bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition-all duration-300 shadow-lg shadow-primary/20 hover:shadow-orange-500/40 group-hover/card:rotate-90">
+                        <i className="bi bi-plus-lg text-xl"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              ))
+            ) : (
+              <div className="w-full text-center py-20 text-gray-400 italic">
+                Hiện chưa có sản phẩm nào trong danh mục này.
+              </div>
+            )}
           </div>
 
-          {/* Arrows */}
+          {/* Navigation Buttons */}
           <button
-            onClick={() => scrollProducts(-1)}
-            className="absolute left-[-20px] top-1/2 -translate-y-1/2 bg-white text-primary w-12 h-12 rounded-full shadow-lg items-center justify-center hover:bg-gray-50 z-10 border border-gray-100 text-xl hidden md:flex"
+            onClick={() => scroll(-1)}
+            className="absolute -left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-xl flex justify-center items-center text-primary hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 z-10 border border-gray-100"
           >
-            ←
+            <i className="bi bi-chevron-left text-xl"></i>
           </button>
           <button
-            onClick={() => scrollProducts(1)}
-            className="absolute right-[-20px] top-1/2 -translate-y-1/2 bg-white text-primary w-12 h-12 rounded-full shadow-lg items-center justify-center hover:bg-gray-50 z-10 border border-gray-100 text-xl hidden md:flex"
+            onClick={() => scroll(1)}
+            className="absolute -right-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-xl flex justify-center items-center text-primary hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 z-10 border border-gray-100"
           >
-            →
+            <i className="bi bi-chevron-right text-xl"></i>
           </button>
         </div>
       </section>
 
-      {/* 3. Experiences Section */}
-      <section className="max-w-7xl mx-auto px-6 py-24 md:px-12 flex flex-col md:flex-row items-center gap-16 relative">
-        <div className="md:w-1/2 relative w-full h-[500px] md:h-[600px] group">
-          <div className="absolute -inset-4 bg-orange-50 rounded-[40px] transform -rotate-3 transition duration-500 group-hover:rotate-0"></div>
+      {/* 3. EXPERIENCES & MATERIALS (GIỮ NGUYÊN ĐỂ KHÔNG MẤT GIAO DIỆN) */}
+      <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
+        <div className="relative">
+          <div className="absolute -inset-4 bg-orange-100 rounded-[40px] -rotate-3"></div>
           <img
-            src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80"
-            alt="Beautiful Experience Interior"
-            className="w-full h-full object-cover rounded-[32px] shadow-2xl relative z-10 transition duration-500 group-hover:scale-[1.02]"
+            src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1000&q=80"
+            className="relative z-10 rounded-[32px] shadow-2xl"
+            alt="Experience"
           />
         </div>
-        <div className="md:w-1/2 flex flex-col items-start gap-6 z-10">
-          <h4 className="text-orange-500 uppercase tracking-widest font-bold text-sm">
+        <div className="space-y-6">
+          <h4 className="text-orange-500 font-bold uppercase tracking-widest text-sm">
             Trải nghiệm
           </h4>
-          <h2 className="text-4xl md:text-5xl font-semibold leading-tight text-primary">
-            Chúng Tôi Mang Đến Trải Nghiệm Tuyệt Vời Nhất
+          <h2 className="text-4xl md:text-5xl font-bold text-primary leading-tight">
+            Chúng tôi mang đến không gian sống hoàn hảo
           </h2>
-          <p className="text-textMuted text-lg leading-relaxed">
-            Bạn không cần phải lo lắng về kết quả vì tất cả những không gian này
-            đều được thực hiện bởi những chuyên gia trong lĩnh vực, với phong
-            cách thanh lịch, hiện đại cùng chất liệu đạt chuẩn cao cấp.
+          <p className="text-gray-500 text-lg leading-relaxed">
+            Đội ngũ chuyên gia từ SmartLiving luôn sẵn sàng biến ý tưởng của bạn
+            thành hiện thực với những vật liệu cao cấp nhất.
           </p>
-          <a
-            href="#"
-            className="inline-flex items-center space-x-2 text-primary font-semibold mt-4 hover:text-orange-500 transition group items-center"
-          >
-            <span>Xem thêm</span>
-            <span className="text-orange-500 transform group-hover:translate-x-1 transition duration-300">
-              →
-            </span>
-          </a>
+          <button className="px-8 py-3 bg-primary text-white rounded-full font-semibold hover:bg-black transition-all">
+            Tìm hiểu thêm
+          </button>
         </div>
       </section>
 
@@ -430,10 +356,7 @@ const Home = () => {
         </div>
 
         <div className="max-w-7xl mx-auto relative px-4 md:px-12 z-10">
-          <div
-            ref={testiCarouselRef}
-            className="flex gap-6 overflow-x-hidden scroll-smooth testimonial-carousel snap-x snap-mandatory py-4 px-2"
-          >
+          <div className="flex gap-6 overflow-x-hidden scroll-smooth testimonial-carousel snap-x snap-mandatory py-4 px-2">
             {/* Card 1 */}
             <div className="w-full md:w-[calc(33.333%-1rem)] shrink-0 snap-center relative h-[450px] rounded-xl overflow-hidden shadow-lg border border-gray-100/50 hover:shadow-2xl transition duration-500">
               <img
@@ -543,16 +466,10 @@ const Home = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => scrollTestimonials(-1)}
-            className="absolute -left-2 md:-left-6 top-1/2 -translate-y-1/2 bg-white text-primary w-10 h-10 rounded-full shadow-lg items-center justify-center hover:bg-orange-50 hover:text-orange-500 transition z-10 text-xl hidden md:flex font-light border border-gray-100"
-          >
+          <button className="absolute -left-2 md:-left-6 top-1/2 -translate-y-1/2 bg-white text-primary w-10 h-10 rounded-full shadow-lg items-center justify-center hover:bg-orange-50 hover:text-orange-500 transition z-10 text-xl hidden md:flex font-light border border-gray-100">
             ←
           </button>
-          <button
-            onClick={() => scrollTestimonials(1)}
-            className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 bg-white text-primary w-10 h-10 rounded-full shadow-lg items-center justify-center hover:bg-orange-50 hover:text-orange-500 transition z-10 text-xl hidden md:flex font-light border border-gray-100"
-          >
+          <button className="absolute -right-2 md:-right-6 top-1/2 -translate-y-1/2 bg-white text-primary w-10 h-10 rounded-full shadow-lg items-center justify-center hover:bg-orange-50 hover:text-orange-500 transition z-10 text-xl hidden md:flex font-light border border-gray-100">
             →
           </button>
         </div>
