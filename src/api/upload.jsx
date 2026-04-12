@@ -33,9 +33,6 @@ export const uploadImageToServer = async (file, folder = "uploads") => {
     method: "POST",
     url: uploadEndpoint,
     data: formData,
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
   });
 
   const imageUrl = extractImageUrl(response?.data);

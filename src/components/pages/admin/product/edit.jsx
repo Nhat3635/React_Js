@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import requestAPI from "../../../../api";
+import { uploadImageToServer } from "../../../../api/upload";
 import Toast from "../../../ui/common/Toast";
 import DeleteConfirmationModal from "../../../ui/common/DeleteModal";
 
 const EditProduct = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const fileInputRef = React.useRef(null);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [colorValues, setColorValues] = useState([]);
@@ -37,6 +39,43 @@ const EditProduct = () => {
   const showToast = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
   }, []);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      showToast("Đang tải ảnh lên...");
+      const imageUrl = await uploadImageToServer(file, "products");
+      setImagePreview(imageUrl);
+      setValue("image", imageUrl);
+      showToast("Tải ảnh thành công!");
+    } catch (err) {
+      showToast("Lỗi khi tải ảnh lên", "error");
+      console.error("Image upload error:", err);
+    }
+  };
+
+  const handleVariantImageUpload = async (e, index) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      showToast("Đang tải ảnh biến thể lên...");
+      const imageUrl = await uploadImageToServer(file, "products");
+      const updated = [...variants];
+      updated[index].variant_image = imageUrl;
+      // Mark as dirty if not a new variant
+      if (!updated[index].isNew) {
+        updated[index].isDirty = true;
+      }
+      setVariants(updated);
+      showToast("Tải ảnh biến thể thành công!");
+    } catch (err) {
+      showToast("Lỗi khi tải ảnh biến thể lên", "error");
+      console.error("Variant image upload error:", err);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -349,6 +388,10 @@ const EditProduct = () => {
     updated[index][field] = value;
     if (field === 'name') {
       updated[index].variantNameError = "";
+    }
+    // Mark as dirty if not a new variant
+    if (!updated[index].isNew) {
+      updated[index].isDirty = true;
     }
     setVariants(updated);
   };
@@ -829,17 +872,16 @@ const EditProduct = () => {
 
                         {/* Ảnh biến thể */}
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ảnh biến thể (URL)</label>
-                          <div className="flex gap-2">
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Ảnh biến thể</label>
+                          <div className="flex gap-2 items-start">
                             <input
-                              type="text"
-                              value={v.variant_image}
-                              onChange={(e) => handleVariantChange(index, "variant_image", e.target.value)}
-                              placeholder="https://..."
-                              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-medium bg-white"
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleVariantImageUpload(e, index)}
+                              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-medium bg-white file:bg-brandOrange file:text-white file:border-0 file:px-2 file:py-1 file:rounded file:font-bold file:cursor-pointer file:text-[10px]"
                             />
                             {v.variant_image && (
-                              <img src={v.variant_image} alt="" className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0" />
+                              <img src={v.variant_image} alt="" title="Click để xem" className="w-10 h-10 rounded-lg object-cover border border-gray-200 flex-shrink-0 cursor-pointer hover:opacity-75" onClick={() => window.open(v.variant_image, '_blank')} />
                             )}
                           </div>
                         </div>
@@ -870,18 +912,18 @@ const EditProduct = () => {
                     </div>
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button type="button" className="px-4 py-2 bg-white rounded-xl text-[10px] font-bold text-primary shadow-lg">Tải ảnh lên</button>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-white rounded-xl text-[10px] font-bold text-primary shadow-lg">Tải ảnh lên</button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Đường dẫn ảnh (URL)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Tải ảnh sản phẩm</label>
                   <input
-                    type="text"
-                    {...register("image")}
-                    onChange={(e) => { register("image").onChange(e); setImagePreview(e.target.value); }}
-                    placeholder="https://..."
-                    className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-white focus:border-brandOrange outline-none text-[11px] font-medium"
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-100 bg-white focus:border-brandOrange outline-none text-[11px] font-medium file:bg-brandOrange file:text-white file:border-0 file:px-4 file:py-2 file:rounded-lg file:font-bold file:cursor-pointer"
                   />
                 </div>
               </div>
