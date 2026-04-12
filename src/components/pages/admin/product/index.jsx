@@ -95,7 +95,6 @@ const ProductManagement = () => {
     const matchesSearch =
       !keyword ||
       item.name?.toLowerCase().includes(keyword) ||
-      item.sku?.toLowerCase().includes(keyword) ||
       String(item.id).includes(keyword);
 
     const matchesCategory =
@@ -286,9 +285,6 @@ const ProductManagement = () => {
                       <div className="flex flex-col">
                         <span className="text-sm font-bold text-primary group-hover:text-brandOrange transition-colors max-w-[200px] truncate">
                           {item.name}
-                        </span>
-                        <span className="text-[11px] text-gray-400 mt-1 font-medium">
-                          {item.sku || "N/A"}
                         </span>
                       </div>
                     </td>

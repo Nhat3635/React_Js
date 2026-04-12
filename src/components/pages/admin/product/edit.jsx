@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
+import DeleteConfirmationModal from "../../../ui/common/DeleteModal";
 
 const EditProduct = () => {
   const { id } = useParams();
@@ -12,12 +13,18 @@ const EditProduct = () => {
   const [colorValues, setColorValues] = useState([]);
   const [sizeValues, setSizeValues] = useState([]);
   const [variants, setVariants] = useState([]);
+  const [specs, setSpecs] = useState([]);
+  const [policies, setPolicies] = useState([]);
+  const [newSpec, setNewSpec] = useState({ spec_name: "", spec_value: "" });
+  const [newPolicy, setNewPolicy] = useState({ policy_type: "", content: "" });
+  const [attrIds, setAttrIds] = useState({ color: null, size: null });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [nameError, setNameError] = useState("");
   const [allProducts, setAllProducts] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, itemType: null, itemId: null, isDeleting: false });
 
   const {
     register,
@@ -52,24 +59,39 @@ const EditProduct = () => {
         base_price: product.base_price,
         status: product.status,
         image: product.image,
+        short_description: product.short_description || "",
+        detail_content: product.detail_content || "",
       });
 
       setImagePreview(product.image);
 
+      setSpecs(product.specs || []);
+      setPolicies(product.policies || []);
+
       // Map variants from database schema
       const variations = product.variants || product.product_variants || product.variations || [];
-      setVariants(variations.map(v => ({
-        id: v.id,
-        sku: v.sku || "",
-        price: v.price || 0,
-        stock_quantity: v.stock_quantity || 0,
-        variant_image: v.variant_image || "",
-        color_value_id: v.color_value_id || "",
-        size_value_id: v.size_value_id || "",
-        isNew: false,
-        isDirty: false,
-        skuError: ""
-      })));
+      setVariants(variations.map(v => {
+        let color_name = "";
+        let size_name = "";
+        if (v.attribute_summary) {
+            const parts = v.attribute_summary.split(", ");
+            parts.forEach(p => {
+                if (p.includes("Màu") || p.includes("Color")) color_name = p.split(": ")[1] || "";
+                if (p.includes("Kích") || p.includes("Size")) size_name = p.split(": ")[1] || "";
+            });
+        }
+        return {
+          id: v.id,
+          name: v.name || "",
+          price: v.price || 0,
+          variant_image: v.variant_image || "",
+          color_name,
+          size_name,
+          isNew: false,
+          isDirty: false,
+          variantNameError: ""
+        };
+      }));
 
       setCategories(Array.isArray(categoriesRes?.data?.data) ? categoriesRes.data.data : Array.isArray(categoriesRes?.data) ? categoriesRes.data : []);
       setBrands(Array.isArray(brandsRes?.data?.data) ? brandsRes.data.data : Array.isArray(brandsRes?.data) ? brandsRes.data : []);
@@ -86,10 +108,12 @@ const EditProduct = () => {
       const sizeAttr = attrs.find(a => a.name.toLowerCase().includes("kích thước") || a.name.toLowerCase().includes("size"));
 
       if (colorAttr) {
+        setAttrIds(prev => ({ ...prev, color: colorAttr.id }));
         const colRes = await requestAPI({ method: "GET", url: `/products/attributes/values/${colorAttr.id}` }).catch(() => ({ data: [] }));
         setColorValues(Array.isArray(colRes?.data?.data) ? colRes.data.data : Array.isArray(colRes?.data) ? colRes.data : []);
       }
       if (sizeAttr) {
+        setAttrIds(prev => ({ ...prev, size: sizeAttr.id }));
         const sizeRes = await requestAPI({ method: "GET", url: `/products/attributes/values/${sizeAttr.id}` }).catch(() => ({ data: [] }));
         setSizeValues(Array.isArray(sizeRes?.data?.data) ? sizeRes.data.data : Array.isArray(sizeRes?.data) ? sizeRes.data : []);
       }
@@ -116,18 +140,18 @@ const EditProduct = () => {
     }
   }, [allProducts, id]);
 
-  const checkVariantSku = (index, sku) => {
+  const checkVariantName = (index, name) => {
     const updated = [...variants];
-    const val = (sku || "").trim();
+    const val = (name || "").trim();
     if (!val) {
-      updated[index].skuError = "Mã SKU không được trống";
-    } else if (variants.some((v, i) => i !== index && v.sku.toLowerCase().trim() === val.toLowerCase())) {
-      updated[index].skuError = "Mã SKU trùng với biến thể khác";
+      updated[index].variantNameError = "Tên biến thể không được trống";
+    } else if (variants.some((v, i) => i !== index && v.name?.toLowerCase().trim() === val.toLowerCase())) {
+      updated[index].variantNameError = "Tên biến thể trùng với biến thể khác";
     } else {
-      updated[index].skuError = "";
+      updated[index].variantNameError = "";
     }
     setVariants(updated);
-    return updated[index].skuError;
+    return updated[index].variantNameError;
   };
 
   useEffect(() => {
@@ -161,6 +185,8 @@ const EditProduct = () => {
         base_price: Number(data.base_price),
         image: data.image || null,
         status: Number(data.status),
+        short_description: data.short_description,
+        detail_content: data.detail_content,
       };
 
       await requestAPI({
@@ -186,31 +212,76 @@ const EditProduct = () => {
     }
   };
 
+  const resolveAttributesForVariant = async (v) => {
+    const attribute_value_ids = [];
+    const updatedColorValues = [...colorValues];
+    const updatedSizeValues = [...sizeValues];
+    let currentCAttrId = attrIds.color;
+    let currentSAttrId = attrIds.size;
+
+    if (v.color_name && v.color_name.trim()) {
+        if (!currentCAttrId) {
+            const res = await requestAPI({ method: "POST", url: "/products/attributes/add", data: { name: "Màu sắc" } });
+            currentCAttrId = res.data?.data?.id || res.data?.id;
+            setAttrIds(prev => ({...prev, color: currentCAttrId}));
+        }
+        const cleanStr = v.color_name.trim();
+        const existing = updatedColorValues.find(c => c.value.toLowerCase() === cleanStr.toLowerCase());
+        if (existing) {
+            attribute_value_ids.push(existing.id);
+        } else {
+            const res = await requestAPI({ method: "POST", url: "/products/attributes/values/add", data: { attribute_id: currentCAttrId, value: cleanStr } });
+            const newId = res.data?.data?.id || res.data?.id;
+            updatedColorValues.push({ id: newId, value: cleanStr });
+            attribute_value_ids.push(newId);
+        }
+    }
+
+    if (v.size_name && v.size_name.trim()) {
+        if (!currentSAttrId) {
+            const res = await requestAPI({ method: "POST", url: "/products/attributes/add", data: { name: "Kích thước" } });
+            currentSAttrId = res.data?.data?.id || res.data?.id;
+            setAttrIds(prev => ({...prev, size: currentSAttrId}));
+        }
+        const cleanStr = v.size_name.trim();
+        const existing = updatedSizeValues.find(s => s.value.toLowerCase() === cleanStr.toLowerCase());
+        if (existing) {
+            attribute_value_ids.push(existing.id);
+        } else {
+            const res = await requestAPI({ method: "POST", url: "/products/attributes/values/add", data: { attribute_id: currentSAttrId, value: cleanStr } });
+            const newId = res.data?.data?.id || res.data?.id;
+            updatedSizeValues.push({ id: newId, value: cleanStr });
+            attribute_value_ids.push(newId);
+        }
+    }
+
+    setColorValues(updatedColorValues);
+    setSizeValues(updatedSizeValues);
+    return attribute_value_ids;
+  };
+
   const handleAddVariantRow = () => {
-    setVariants([...variants, { sku: "", price: 0, stock_quantity: 0, variant_image: "", color_value_id: "", size_value_id: "", isNew: true, isDirty: false, skuError: "" }]);
+    setVariants([...variants, { name: "", price: 0, variant_image: "", color_name: "", size_name: "", isNew: true, isDirty: false, variantNameError: "" }]);
   };
 
   const handleSaveNewVariant = async (index) => {
     const v = variants[index];
-    const errObj = checkVariantSku(index, v.sku);
+    const errObj = checkVariantName(index, v.name);
     if (errObj) {
       showToast(errObj, "error");
       return;
     }
 
     try {
-      const attribute_value_ids = [];
-      if (v.color_value_id) attribute_value_ids.push(Number(v.color_value_id));
-      if (v.size_value_id) attribute_value_ids.push(Number(v.size_value_id));
+      const attribute_value_ids = await resolveAttributesForVariant(v);
 
       const response = await requestAPI({
         method: "POST",
         url: "/products/variants/add",
         data: {
           product_id: id,
-          sku: v.sku,
+          name: v.name,
           price: Number(v.price) || 0,
-          stock_quantity: Number(v.stock_quantity) || 0,
           variant_image: v.variant_image || null,
           attribute_value_ids,
         }
@@ -218,15 +289,15 @@ const EditProduct = () => {
 
       showToast("Thêm biến thể thành công!");
       const updated = [...variants];
-      updated[index] = { ...v, id: response.data?.data?.id || response.data?.id, isNew: false, isDirty: false, skuError: "" };
+      updated[index] = { ...v, id: response.data?.data?.id || response.data?.id, isNew: false, isDirty: false, variantNameError: "" };
       setVariants(updated);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || "";
       if (errorMsg.toLowerCase().includes("duplicate") || errorMsg.toLowerCase().includes("trùng")) {
         const updated = [...variants];
-        updated[index].skuError = "Mã SKU đã tồn tại trong hệ thống";
+        updated[index].variantNameError = "Tên biến thể đã tồn tại trong hệ thống";
         setVariants(updated);
-        showToast("Mã SKU đã tồn tại trong hệ thống", "error");
+        showToast("Tên biến thể đã tồn tại trong hệ thống", "error");
       } else {
         showToast(errorMsg || "Không thể thêm biến thể", "error");
       }
@@ -236,24 +307,21 @@ const EditProduct = () => {
   const handleUpdateVariant = async (index) => {
     const v = variants[index];
     if (!v.id || v.isNew) return;
-    const errObj = checkVariantSku(index, v.sku);
+    const errObj = checkVariantName(index, v.name);
     if (errObj) {
       showToast(errObj, "error");
       return;
     }
 
     try {
-      const attribute_value_ids = [];
-      if (v.color_value_id) attribute_value_ids.push(Number(v.color_value_id));
-      if (v.size_value_id) attribute_value_ids.push(Number(v.size_value_id));
+      const attribute_value_ids = await resolveAttributesForVariant(v);
 
       await requestAPI({
         method: "PUT",
         url: `/products/variants/${v.id}`,
         data: {
-          sku: v.sku,
+          name: v.name,
           price: Number(v.price) || 0,
-          stock_quantity: Number(v.stock_quantity) || 0,
           variant_image: v.variant_image || null,
           attribute_value_ids,
         }
@@ -261,18 +329,99 @@ const EditProduct = () => {
 
       showToast("Cập nhật biến thể thành công!");
       const updated = [...variants];
-      updated[index] = { ...v, isDirty: false, skuError: "" };
+      updated[index] = { ...v, isDirty: false, variantNameError: "" };
       setVariants(updated);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || "";
       if (errorMsg.toLowerCase().includes("duplicate") || errorMsg.toLowerCase().includes("trùng")) {
         const updated = [...variants];
-        updated[index].skuError = "Mã SKU đã tồn tại trong hệ thống";
+        updated[index].variantNameError = "Tên biến thể đã tồn tại trong hệ thống";
         setVariants(updated);
-        showToast("Mã SKU đã tồn tại trong hệ thống", "error");
+        showToast("Tên biến thể đã tồn tại trong hệ thống", "error");
       } else {
         showToast(errorMsg || "Không thể cập nhật biến thể", "error");
       }
+    }
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const updated = [...variants];
+    updated[index][field] = value;
+    if (field === 'name') {
+      updated[index].variantNameError = "";
+    }
+    setVariants(updated);
+  };
+
+  const handleAddSpec = async () => {
+    if (!newSpec.spec_name.trim() || !newSpec.spec_value.trim()) {
+      showToast("Vui lòng nhập đầy đủ tên và giá trị thông số", "error");
+      return;
+    }
+
+    try {
+      const specData = {
+        product_id: id,
+        spec_name: newSpec.spec_name.trim(),
+        spec_value: newSpec.spec_value.trim()
+      };
+
+      const response = await requestAPI({
+        method: "POST",
+        url: "/products/specs/add",
+        data: specData
+      });
+
+      // Extract ID from response, use the exact data we sent
+      const serverData = response?.data?.data || response?.data;
+      const newSpecData = {
+        id: serverData?.id || Date.now(),
+        spec_name: specData.spec_name,
+        spec_value: specData.spec_value
+      };
+
+      setSpecs([...specs, newSpecData]);
+      setNewSpec({ spec_name: "", spec_value: "" });
+      showToast("Thêm thông số thành công");
+    } catch (err) {
+      showToast("Lỗi khi thêm thông số", "error");
+      console.error("Add spec error:", err);
+    }
+  };
+
+  const handleAddPolicy = async () => {
+    if (!newPolicy.policy_type.trim() || !newPolicy.content.trim()) {
+      showToast("Vui lòng nhập đầy đủ loại và nội dung chính sách", "error");
+      return;
+    }
+
+    try {
+      const policyData = {
+        product_id: id,
+        policy_type: newPolicy.policy_type.trim(),
+        content: newPolicy.content.trim()
+      };
+
+      const response = await requestAPI({
+        method: "POST",
+        url: "/products/policies/add",
+        data: policyData
+      });
+
+      // Extract ID from response, use the exact data we sent
+      const serverData = response?.data?.data || response?.data;
+      const newPolicyData = {
+        id: serverData?.id || Date.now(),
+        policy_type: policyData.policy_type,
+        content: policyData.content
+      };
+
+      setPolicies([...policies, newPolicyData]);
+      setNewPolicy({ policy_type: "", content: "" });
+      showToast("Thêm chính sách thành công");
+    } catch (err) {
+      showToast("Lỗi khi thêm chính sách", "error");
+      console.error("Add policy error:", err);
     }
   };
 
@@ -283,30 +432,40 @@ const EditProduct = () => {
       return;
     }
 
-    if (!window.confirm("Bạn có chắc muốn xóa biến thể này khỏi hệ thống?")) return;
-
-    try {
-      await requestAPI({
-        method: "DELETE",
-        url: `/products/variants/${v.id}`,
-      });
-      showToast("Xóa biến thể thành công!");
-      setVariants(variants.filter((_, i) => i !== index));
-    } catch (err) {
-      showToast("Lỗi khi xóa biến thể", "error");
-    }
+    setDeleteModal({ isOpen: true, itemType: "variant", itemId: v.id, itemIndex: index, isDeleting: false });
   };
 
-  const handleVariantChange = (index, field, value) => {
-    const updated = [...variants];
-    updated[index][field] = value;
-    if (!updated[index].isNew) {
-      updated[index].isDirty = true;
+  const handleDeleteSpec = async (specId) => {
+    setDeleteModal({ isOpen: true, itemType: "spec", itemId: specId, isDeleting: false });
+  };
+
+  const handleDeletePolicy = async (policyId) => {
+    setDeleteModal({ isOpen: true, itemType: "policy", itemId: policyId, isDeleting: false });
+  };
+
+  const confirmDelete = async () => {
+    const { itemType, itemId, itemIndex } = deleteModal;
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      if (itemType === "variant") {
+        await requestAPI({ method: "DELETE", url: `/products/variants/${itemId}` });
+        setVariants(variants.filter((_, i) => i !== itemIndex));
+        showToast("Xóa biến thể thành công!");
+      } else if (itemType === "spec") {
+        await requestAPI({ method: "DELETE", url: `/products/specs/${itemId}` });
+        setSpecs(specs.filter(s => s.id !== itemId));
+        showToast("Xóa thông số thành công");
+      } else if (itemType === "policy") {
+        await requestAPI({ method: "DELETE", url: `/products/policies/${itemId}` });
+        setPolicies(policies.filter(p => p.id !== itemId));
+        showToast("Xóa chính sách thành công");
+      }
+      setDeleteModal({ isOpen: false, itemType: null, itemId: null, isDeleting: false });
+    } catch (err) {
+      showToast("Lỗi khi xóa", "error");
+      setDeleteModal(prev => ({ ...prev, isDeleting: false }));
     }
-    if (field === 'sku') {
-      updated[index].skuError = "";
-    }
-    setVariants(updated);
   };
 
   if (isLoading) {
@@ -321,6 +480,22 @@ const EditProduct = () => {
   return (
     <div className="space-y-6 pb-20">
       <Toast show={toast.show} message={toast.message} type={toast.type} onClose={() => setToast({ ...toast, show: false })} />
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        title={
+          deleteModal.itemType === "variant" ? "Xóa biến thể" :
+          deleteModal.itemType === "spec" ? "Xóa thông số" :
+          "Xóa chính sách"
+        }
+        message={
+          deleteModal.itemType === "variant" ? "Bạn có chắc chắn muốn xóa biến thể này không? Hành động này không thể hoàn tác." :
+          deleteModal.itemType === "spec" ? "Bạn có chắc chắn muốn xóa thông số này không?" :
+          "Bạn có chắc chắn muốn xóa chính sách này không?"
+        }
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, itemType: null, itemId: null, isDeleting: false })}
+        isLoading={deleteModal.isDeleting}
+      />
 
       <form onSubmit={handleSubmit(onUpdateProduct)} id="editProductForm">
         {/* Header */}
@@ -371,8 +546,9 @@ const EditProduct = () => {
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Tên sản phẩm</label>
                   <input
                     type="text"
                     {...register("name", { required: "Tên sản phẩm không được trống" })}
@@ -425,6 +601,7 @@ const EditProduct = () => {
                   </div>
                   {errors.base_price && <small className="text-red-500 text-xs font-bold pl-1">{errors.base_price.message}</small>}
                 </div>
+                
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Trạng thái (status)</label>
@@ -436,9 +613,98 @@ const EditProduct = () => {
                     <option value="0">Tạm dừng</option>
                   </select>
                 </div>
+                  <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Mô tả ngắn </label>
+                  <textarea
+                    {...register("short_description", { required: "Mô tả ngắn không được để trống", minLength: { value: 10, message: "Mô tả ngắn phải ít nhất 10 ký tự" } })}
+                    placeholder="Tóm tắt nhanh về sản phẩm (tối thiểu 10 ký tự)..."
+                    rows={2}
+                    className={`w-full px-5 py-4 rounded-2xl border bg-white focus:outline-none focus:ring-4 focus:ring-brandOrange/5 transition text-sm font-medium text-primary resize-none ${errors.short_description ? "border-red-400 focus:border-red-400" : "border-gray-100 focus:border-brandOrange"}`}
+                  ></textarea>
+                  {errors.short_description && <small className="text-red-500 text-xs font-bold pl-1">{errors.short_description.message}</small>}
+                </div>
+
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Nội dung chi tiết </label>
+                  <textarea
+                    {...register("detail_content", { required: "Nội dung chi tiết không được để trống", minLength: { value: 20, message: "Nội dung chi tiết phải ít nhất 20 ký tự" } })}
+                    placeholder="Nhập nội dung chi tiết sản phẩm (tối thiểu 20 ký tự)..."
+                    rows={4}
+                    className={`w-full px-5 py-4 rounded-2xl border bg-white focus:outline-none focus:ring-4 focus:ring-brandOrange/5 transition text-sm font-medium text-primary resize-none ${errors.detail_content ? "border-red-400 focus:border-red-400" : "border-gray-100 focus:border-brandOrange"}`}
+                  ></textarea>
+                  {errors.detail_content && <small className="text-red-500 text-xs font-bold pl-1">{errors.detail_content.message}</small>}
+                </div>
+              </div>
+            </div>
+      {/* Specs Card */}
+            <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-6">
+              <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-purple-500 rounded-full"></span>
+                Thông số kỹ thuật
+              </h2>
+              <div className="space-y-4">
+                {specs.length === 0 ? (
+                  <p className="text-gray-400 italic text-sm">Chưa có thông số</p>
+                ) : (
+                  specs.map((s, i) => (
+                    <div key={i} className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100 hover:border-purple-200 transition-colors">
+                      <div className="flex-1 grid grid-cols-2 gap-4">
+                        <span className="text-xs font-bold text-gray-600">{s.spec_name}</span>
+                        <span className="text-xs font-medium text-gray-800">{s.spec_value}</span>
+                      </div>
+                      <button type="button" onClick={() => handleDeleteSpec(s.id)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex-shrink-0" title="Xóa thông số">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      </button>
+                    </div>
+                  ))
+                )}
+                <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-gray-100">
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="Tên TH (VD: Chất liệu)" value={newSpec.spec_name} onChange={e => setNewSpec({...newSpec, spec_name: e.target.value})} className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 bg-white transition" />
+                    <input type="text" placeholder="Giá trị (VD: Cotton)" value={newSpec.spec_value} onChange={e => setNewSpec({...newSpec, spec_value: e.target.value})} className="px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100 bg-white transition" />
+                  </div>
+                  <button type="button" onClick={handleAddSpec} className="px-4 py-2.5 rounded-xl text-xs font-bold text-purple-500 bg-purple-50 hover:bg-purple-100 transition-all flex items-center gap-2 justify-center">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    Thêm thông số
+                  </button>
+                </div>
               </div>
             </div>
 
+            {/* Policies Card */}
+            <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-6">
+              <h2 className="text-lg font-bold text-primary flex items-center gap-2">
+                <span className="w-1.5 h-6 bg-emerald-500 rounded-full"></span>
+                Chính sách
+              </h2>
+              <div className="space-y-4">
+                {policies.length === 0 ? (
+                  <p className="text-gray-400 italic text-sm">Chưa có chính sách</p>
+                ) : (
+                  policies.map((p, i) => (
+                    <div key={i} className="flex flex-col gap-3 bg-gray-50 p-5 rounded-xl border border-gray-100 hover:border-emerald-200 transition-colors relative">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <span className="text-xs font-bold text-emerald-600 uppercase bg-emerald-50 px-3 py-1 rounded-lg inline-block">{p.policy_type}</span>
+                          <p className="text-sm font-medium text-gray-800 mt-2 break-words">{p.content}</p>
+                        </div>
+                        <button type="button" onClick={() => handleDeletePolicy(p.id)} className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex-shrink-0" title="Xóa chính sách">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div className="flex flex-col gap-4 mt-4 pt-4 border-t border-gray-100">
+                  <input type="text" placeholder="Loại (VD: Đổi trả, Bảo hành)" value={newPolicy.policy_type} onChange={e => setNewPolicy({...newPolicy, policy_type: e.target.value})} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 bg-white transition" />
+                  <textarea placeholder="Nội dung chính sách..." rows="2" value={newPolicy.content} onChange={e => setNewPolicy({...newPolicy, content: e.target.value})} className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 bg-white transition resize-none"></textarea>
+                  <button type="button" onClick={handleAddPolicy} className="px-4 py-2.5 rounded-xl text-xs font-bold text-emerald-500 bg-emerald-50 hover:bg-emerald-100 transition-all flex items-center gap-2 justify-center">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"></path></svg>
+                    Thêm chính sách
+                  </button>
+                </div>
+              </div>
+            </div>
             {/* Variants Card */}
             <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-6">
               <div className="flex justify-between items-center">
@@ -504,18 +770,18 @@ const EditProduct = () => {
                       </div>
 
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {/* SKU */}
+                        {/* Tên biến thể */}
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mã SKU</label>
+                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tên biến thể</label>
                           <input
                             type="text"
-                            value={v.sku}
-                            onChange={(e) => handleVariantChange(index, "sku", e.target.value)}
-                            onBlur={() => checkVariantSku(index, v.sku)}
-                            placeholder="SKU-001"
-                            className={`w-full px-3 py-2.5 rounded-xl border outline-none text-xs font-bold bg-white transition ${v.skuError ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-brandOrange"}`}
+                            value={v.name}
+                            onChange={(e) => handleVariantChange(index, "name", e.target.value)}
+                            onBlur={() => checkVariantName(index, v.name)}
+                            placeholder="Tên biến thể"
+                            className={`w-full px-3 py-2.5 rounded-xl border outline-none text-xs font-bold bg-white transition ${v.variantNameError ? "border-red-400 focus:border-red-400" : "border-gray-200 focus:border-brandOrange"}`}
                           />
-                          {v.skuError && <small className="text-red-500 text-[10px] font-bold flex items-center gap-1">⚠ {v.skuError}</small>}
+                          {v.variantNameError && <small className="text-red-500 text-[10px] font-bold flex items-center gap-1">⚠ {v.variantNameError}</small>}
                         </div>
 
                         {/* Giá */}
@@ -529,45 +795,36 @@ const EditProduct = () => {
                           />
                         </div>
 
-                        {/* Số lượng kho */}
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Số lượng kho</label>
-                          <input
-                            type="number"
-                            value={v.stock_quantity}
-                            onChange={(e) => handleVariantChange(index, "stock_quantity", e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold text-center bg-white"
-                          />
-                        </div>
-
                         {/* Màu sắc */}
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Màu sắc</label>
-                          <select
-                            value={v.color_value_id}
-                            onChange={(e) => handleVariantChange(index, "color_value_id", e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white appearance-none"
-                          >
-                            <option value="">-- Chọn màu --</option>
-                            {colorValues.map((c) => (
-                              <option key={c.id} value={c.id}>{c.value}</option>
-                            ))}
-                          </select>
+                          <input
+                            type="text"
+                            list={`color-list-edit-${index}`}
+                            value={v.color_name}
+                            onChange={(e) => handleVariantChange(index, "color_name", e.target.value)}
+                            placeholder="Nhập màu..."
+                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white"
+                          />
+                          <datalist id={`color-list-edit-${index}`}>
+                            {colorValues.map((c) => <option key={c.id} value={c.value} />)}
+                          </datalist>
                         </div>
 
                         {/* Kích thước */}
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Kích thước</label>
-                          <select
-                            value={v.size_value_id}
-                            onChange={(e) => handleVariantChange(index, "size_value_id", e.target.value)}
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white appearance-none"
-                          >
-                            <option value="">-- Chọn kích thước --</option>
-                            {sizeValues.map((s) => (
-                              <option key={s.id} value={s.id}>{s.value}</option>
-                            ))}
-                          </select>
+                          <input
+                            type="text"
+                            list={`size-list-edit-${index}`}
+                            value={v.size_name}
+                            onChange={(e) => handleVariantChange(index, "size_name", e.target.value)}
+                            placeholder="Nhập kích thước..."
+                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white"
+                          />
+                          <datalist id={`size-list-edit-${index}`}>
+                            {sizeValues.map((s) => <option key={s.id} value={s.value} />)}
+                          </datalist>
                         </div>
 
                         {/* Ảnh biến thể */}
@@ -592,6 +849,8 @@ const EditProduct = () => {
                 )}
               </div>
             </div>
+      
+
           </div>
 
           {/* Right Sidebar */}

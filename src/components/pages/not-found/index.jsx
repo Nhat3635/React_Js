@@ -13,10 +13,10 @@ const NotFoundPage = () => {
         <p className="mt-2 text-sm text-gray-500">{message}</p>
         <div className="mt-8 flex items-center justify-center gap-3">
           <Link
-            to="/admin/orders"
+            to="/admin"
             className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-white border border-gray-100 hover:bg-gray-50 transition"
           >
-            Quay về đơn hàng
+            Quay về trang quản trị
           </Link>
           <Link
             to="/"
