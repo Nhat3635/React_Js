@@ -7,7 +7,10 @@ const ClientLayout = () => {
     const { pathname } = useLocation();
 
     useEffect(() => {
-        window.scrollTo(0, 0);
+        // Không cuộn lên đầu trang nếu đang ở trong khu vực profile (để tránh giật khi chuyển tab)
+        if (!pathname.startsWith('/profile')) {
+            window.scrollTo(0, 0);
+        }
     }, [pathname]);
 
     return (

@@ -14,6 +14,10 @@ import About from './components/pages/client/about';
 import Contact from './components/pages/client/contact';
 import Cart from './components/pages/client/cart';
 import Profile from './components/pages/client/profile';
+import PersonalInfo from './components/pages/client/profile/PersonalInfo';
+import Orders from './components/pages/client/profile/Orders';
+import Wishlist from './components/pages/client/profile/Wishlist';
+import EditProfile from './components/pages/client/profile/edit';
 import Checkout from './components/pages/client/checkout';
 import Login from './components/pages/client/login';
 import Register from './components/pages/client/register';
@@ -57,7 +61,12 @@ function App() {
           <Route path="about" element={<About />} />
           <Route path="contact" element={<Contact />} />
           <Route path="cart" element={<ProtectedClient><Cart /></ProtectedClient>} />
-          <Route path="profile" element={<ProtectedClient><Profile /></ProtectedClient>} />
+          <Route path="profile" element={<ProtectedClient><Profile /></ProtectedClient>}>
+            <Route index element={<PersonalInfo />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="wishlist" element={<Wishlist />} />
+            <Route path="edit" element={<EditProfile />} />
+          </Route>
           <Route path="checkout" element={<ProtectedClient><Checkout /></ProtectedClient>} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
