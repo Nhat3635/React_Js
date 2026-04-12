@@ -16,31 +16,19 @@ const normalizeHomeProducts = (payload) => {
       ? payload
       : [];
 
-  const activeItems = rawItems.filter(
-    (item) => Number(item?.status) === 1,
-  );
-
-  return activeItems.map((item, index) => {
-    const priceValue =
-      item.base_price ??
-      item.price ??
-      0;
-
+  return rawItems.map((item, index) => {
+    const priceValue = item.base_price ?? item.price ?? 0;
     return {
-      id: item.id ?? item._id ?? index,
-      name: item.name ?? item.title ?? item.product_name ?? "Sản phẩm",
-      category:
-        item.category_name ??
-        item.category ??
-        item.category_title ??
-        "Nội thất",
-      image:
-        item.featured_image ??
-        item.image ??
-        item.thumbnail ??
-        "https://placehold.co/600x600?text=PRODUCT",
-      price: Number(String(priceValue).replace(/[^\d]/g, "")) || 0,
-      rating: Number(item.rating_avg ?? item.rating ?? 0),
+      id: item.id ?? index,
+      name: item.name ?? "Sản phẩm không tên",
+      category_id: item.category_id,
+      category_name: item.category_name ?? "Nội thất",
+      image: item.image
+        ? `http://localhost:3000/uploads/products/${item.image}`
+        : "https://placehold.co/600x600?text=NO+IMAGE",
+      price: Number(priceValue) || 0,
+      rating: Number(item.rating ?? 0),
+      status: item.status,
     };
   });
 };
@@ -242,17 +230,20 @@ const Home = () => {
                     </span>
                     <Link
                       to={`/product-detail/${product.id}`}
-                      className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition -rotate-45 group-hover:rotate-0 duration-300"
+                      className="text-xl font-bold text-primary mb-3 line-clamp-1 hover:text-orange-500 transition"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M5 12h14M12 5l7 7-7 7"></path>
-                      </svg>
+                      {product.name}
                     </Link>
+                    <div className="mb-4">{formatStars(product.rating)}</div>
+
+                    <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
+                      <span className="text-2xl font-black text-primary">
+                        {formatPrice(product.price)}
+                      </span>
+                      <button className="w-12 h-12 rounded-2xl bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition-all duration-300 shadow-lg shadow-primary/20 hover:shadow-orange-500/40 group-hover/card:rotate-90">
+                        <i className="bi bi-plus-lg text-xl"></i>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
