@@ -10,7 +10,11 @@ const normalizeProducts = (payload) => {
       ? payload
       : [];
 
-  return rawItems.map((item, index) => {
+  const activeItems = rawItems.filter(
+    (item) => Number(item?.status) === 1,
+  );
+
+  return activeItems.map((item, index) => {
     const priceValue =
       item.base_price ??
       item.price ??
@@ -36,11 +40,10 @@ const normalizeProducts = (payload) => {
         item.featured_image ??
         item.image ??
         item.thumbnail ??
-        item.avatar ??
         "https://placehold.co/600x600?text=PRODUCT",
       price: parsedPrice,
-      rating: Number(item.rating ?? item.review_score ?? 0),
-      stockStatus: item.stock_status ?? item.status ?? "Còn hàng",
+      rating: Number(item.rating_avg ?? item.rating ?? 0),
+      status: item.status ?? "Còn hàng",
       sortKey: item.created_at ? new Date(item.created_at).getTime() : 0,
     };
   });
@@ -387,9 +390,19 @@ const Shop = () => {
               {formatPrice(product.price)}
             </span>
           </div>
-          <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition add-to-cart shadow-lg">
-            +
-          </button>
+          <Link
+            to={`/product-detail/${product.id}`}
+            className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition -rotate-45 group-hover:rotate-0 duration-300"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7"></path>
+            </svg>
+          </Link>
         </div>
       </div>
     );
@@ -449,34 +462,6 @@ const Shop = () => {
             </h3>
 
             <div className="grid grid-cols-1 gap-3">{brandFilterItems}</div>
-          </div>
-
-          <div>
-            <h3 className="text-lg font-semibold mb-4 border-b border-gray-200 pb-2">
-              Màu sắc
-            </h3>
-            <div className="flex gap-3">
-              <button
-                className="color-filter w-6 h-6 rounded-full bg-black ring-2 ring-transparent focus:ring-gray-400"
-                data-color="black"
-                title="Đen"
-              ></button>
-              <button
-                className="color-filter w-6 h-6 rounded-full bg-[#eaddcf] ring-2 ring-transparent focus:ring-gray-400 border border-gray-200"
-                data-color="beige"
-                title="Màu Be"
-              ></button>
-              <button
-                className="color-filter w-6 h-6 rounded-full bg-[#773f1a] ring-2 ring-transparent focus:ring-gray-400"
-                data-color="walnut"
-                title="Gỗ Óc Chó"
-              ></button>
-              <button
-                className="color-filter w-6 h-6 rounded-full bg-white ring-2 ring-transparent focus:ring-gray-400 border border-gray-300"
-                data-color="white"
-                title="Trắng"
-              ></button>
-            </div>
           </div>
 
           <div>

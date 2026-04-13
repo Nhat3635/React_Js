@@ -1,25 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import requestAPI from "../../../../api";
 import "./style.css";
 
 // Ảnh mặc định nếu không có ảnh sản phẩm
 const ANH_MAC_DINH = "https://placehold.co/600x600?text=PRODUCT";
-
-const SIZE_MAP = {
-  "16": "Nhỏ (1.6m)",
-  "20": "Vừa (2.0m)",
-  "24": "Lớn (2.4m)",
-  "28": "Siêu lớn (2.8m)",
-};
-
-const COLOR_MAP = {
-  WHITE: "Trắng Kem",
-  GREY: "Xám Khói",
-  GOLD: "Vàng Sồi",
-  BLACK: "Đen Tuyền",
-  PINK: "Hồng",
-};
 
 // Hàm định dạng tiền tệ
 function FormPrice(value) {
@@ -73,94 +58,187 @@ function resolveReviewAuthorName(reviewItem) {
 }
 
 function parseVariantData(variantItem) {
-  const summary = variantItem?.attribute_summary || "";
-  let color = "";
-  let size = "";
-
-  if (summary.includes("Màu sắc:")) {
-    color = summary.split("Màu sắc:")[1]?.split(",")[0]?.trim() || "";
-  }
-  if (summary.includes("Kích thước:")) {
-    size = summary.split("Kích thước:")[1]?.trim() || "";
-  }
-
-  if ((!color || !size) && variantItem?.sku) {
-    const skuParts = String(variantItem.sku).split("-");
-    const colorCode = skuParts[1] || "";
-    const sizeCode = skuParts[2] || "";
-
-    if (!color) {
-      color = COLOR_MAP[colorCode] || colorCode;
-    }
-    if (!size) {
-      size = SIZE_MAP[sizeCode] || sizeCode;
-    }
-  }
-
   return {
     id: variantItem?.id,
+    name:
+      variantItem?.name ||
+      variantItem?.attribute_summary ||
+      `Biến thể #${variantItem?.id || ""}`,
     sku: variantItem?.sku || "",
     price: Number(String(variantItem?.price || 0).replace(/[^\d]/g, "")) || 0,
     stock_quantity: Number(variantItem?.stock_quantity || 0),
-    color,
-    size,
+    image: variantItem?.variant_image || "",
   };
+}
+
+function parseMoney(value) {
+  return Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
+}
+
+function normalizeReviewData(reviewItem) {
+  return {
+    id: reviewItem?.id || Math.random().toString(36),
+    name: resolveReviewAuthorName(reviewItem),
+    avatar: reviewItem?.avatar || "https://placehold.co/100x100?text=U",
+    rating: Number(reviewItem?.rating || 5),
+    date: formatReviewDate(reviewItem?.created_at || reviewItem?.date),
+    content: reviewItem?.comment || reviewItem?.content || "",
+    verified: Boolean(reviewItem?.verified || reviewItem?.purchased),
+  };
+}
+
+function calculateAverageRating(reviewItems) {
+  if (!Array.isArray(reviewItems) || reviewItems.length === 0) {
+    return 0;
+  }
+
+  const totalRating = reviewItems.reduce(
+    (sum, item) => sum + Number(item?.rating || 0),
+    0,
+  );
+
+  return totalRating / reviewItems.length;
+}
+
+function normalizeRelatedProductData(productItem) {
+  return {
+    id: productItem?.id,
+    name: productItem?.name || "Sản phẩm",
+    price: parseMoney(productItem?.base_price),
+    image: productItem?.image || ANH_MAC_DINH,
+    category: productItem?.category_name || "",
+    rating: Number(productItem?.rating_avg || 0),
+    hasRating: Boolean(productItem?.rating_avg),
+  };
+}
+
+function buildImageGallery(product, variants) {
+  const detailImages = Array.isArray(product?.images)
+    ? product.images.filter(Boolean)
+    : [];
+  const variantImages = variants.map((item) => item.image).filter(Boolean);
+
+  const mergedGallery = [
+    ...detailImages,
+    ...variantImages,
+    product?.image || ANH_MAC_DINH,
+  ].filter(Boolean);
+
+  return Array.from(new Set(mergedGallery));
+}
+
+function normalizeDetailData(product) {
+  const variants = Array.isArray(product?.variants)
+    ? product.variants.map((item) => parseVariantData(item))
+    : [];
+
+  const gallery = buildImageGallery(product, variants);
+  const firstVariant = variants[0] || null;
+  const firstVariantId = firstVariant ? String(firstVariant.id) : "";
+  const normalizedReviews = Array.isArray(product?.reviews)
+    ? product.reviews.map((item) => normalizeReviewData(item))
+    : [];
+  const averageRating = calculateAverageRating(normalizedReviews);
+
+  return {
+    productInfo: {
+      name: product?.name || "Sản phẩm",
+      category: product?.category_name || "Nội thất",
+      price: firstVariant ? firstVariant.price : parseMoney(product?.base_price),
+      oldPrice: 0,
+      description: product?.short_description || "Chưa cập nhật",
+      rating: averageRating || product?.rating_avg || 0,
+      reviewCount: normalizedReviews.length,
+    },
+    images: {
+      main: gallery[0] || ANH_MAC_DINH,
+      gallery: gallery.length > 0 ? gallery : [ANH_MAC_DINH],
+    },
+    tabDetails: {
+      descriptions: product?.detail_content
+        ? String(product.detail_content)
+            .split("\n")
+            .map((item) => item.trim())
+            .filter(Boolean)
+        : [],
+      specifications: Array.isArray(product?.specs)
+        ? product.specs.map((item) => ({
+            label: item?.spec_name || "Thông số",
+            value: item?.spec_value || "",
+          }))
+        : [],
+      shippingPolicy: Array.isArray(product?.policies)
+        ? product.policies.map((item) => item?.content).filter(Boolean)
+        : [],
+    },
+    variants,
+    reviews: normalizedReviews,
+    firstVariantId,
+  };
+}
+
+function buildRelatedProducts(currentProduct, productList) {
+  if (!Array.isArray(productList)) {
+    return [];
+  }
+
+  return productList
+    .filter((item) => Number(item?.status) === 1)
+    .filter((item) => String(item?.id) !== String(currentProduct?.id))
+    .filter(
+      (item) =>
+        String(item?.category_name || "") ===
+        String(currentProduct?.category_name || ""),
+    )
+    .slice(0, 4)
+    .map((item) => normalizeRelatedProductData(item));
+}
+
+function resolveVariantImage(variantItem, fallbackImage) {
+  return variantItem?.image || fallbackImage || ANH_MAC_DINH;
 }
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
 
-  const [state, setState] = useState({
-    productInfo: {
-      name: "Ghế Sofa Cao Cấp Minimalist",
-      category: "Phòng Khách",
-      price: 899000,
-      oldPrice: 1050000,
-      description: "Chưa cập nhật",
-      rating: 5,
-      reviewCount: 0,
-    },
-    images: {
-      main: ANH_MAC_DINH,
-      gallery: [ANH_MAC_DINH],
-    },
-    selections: {
-      quantity: 1,
-      size: "medium",
-      color: "grey",
-      activeTab: "desc",
-    },
-    tabDetails: {
-      descriptions: [],
-      specifications: [],
-      shippingPolicy: [],
-    },
-    reviews: {
-      items: [],
-      rating: 5,
-      content: "",
-      message: "",
-      isSubmitting: false,
-      showAll: false,
-    },
-    relatedProducts: [],
-    variants: [],
-    loading: {
-      isLoading: false,
-      error: "",
-    },
+  const [productInfo, setProductInfo] = useState({
+    name: "Ghế Sofa Cao Cấp Minimalist",
+    category: "Phòng Khách",
+    price: 899000,
+    oldPrice: 0,
+    description: "Chưa cập nhật",
+    rating: 5,
+    reviewCount: 0,
   });
-
-  const {
-    productInfo,
-    images,
-    selections,
-    tabDetails,
-    reviews,
-    relatedProducts,
-    variants,
-    loading,
-  } = state;
+  const [images, setImages] = useState({
+    main: ANH_MAC_DINH,
+    gallery: [ANH_MAC_DINH],
+  });
+  const [selections, setSelections] = useState({
+    quantity: 1,
+    variantId: "",
+    activeTab: "desc",
+  });
+  const [tabDetails, setTabDetails] = useState({
+    descriptions: [],
+    specifications: [],
+    shippingPolicy: [],
+  });
+  const [reviews, setReviews] = useState({
+    items: [],
+    rating: 5,
+    content: "",
+    message: "",
+    isSubmitting: false,
+    showAll: false,
+  });
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [variants, setVariants] = useState([]);
+  const [loading, setLoading] = useState({
+    isLoading: false,
+    error: "",
+  });
 
   const productName = productInfo.name;
   const categoryName = productInfo.category;
@@ -174,8 +252,7 @@ const ProductDetail = () => {
   const galleryImages = images.gallery;
 
   const quantity = selections.quantity;
-  const selectedSize = selections.size;
-  const selectedColor = selections.color;
+  const selectedVariantId = selections.variantId;
   const activeTab = selections.activeTab;
 
   const descriptionLines = tabDetails.descriptions;
@@ -194,291 +271,185 @@ const ProductDetail = () => {
   const isLoading = loading.isLoading;
   const errorMessage = loading.error;
 
+  const computedReviewCount = reviewList.length;
+  const computedProductRating = calculateAverageRating(reviewList);
+
   const selectedVariant = variantList.find(
-    (item) => item.size === selectedSize && item.color === selectedColor,
+    (item) => String(item.id) === String(selectedVariantId),
   );
-  const selectedStock = selectedVariant ? selectedVariant.stock_quantity : 0;
-  const isOutOfStock = !selectedVariant || selectedStock <= 0;
   const currentPrice = selectedVariant ? selectedVariant.price : price;
 
-  const sizeOptions = Array.from(
-    new Set(variantList.map((item) => item.size).filter(Boolean)),
-  );
-  const colorOptions = Array.from(
-    new Set(variantList.map((item) => item.color).filter(Boolean)),
-  );
-
-  function updateProductInfo(partialInfo) {
-    setState((previous) => ({
-      ...previous,
-      productInfo: { ...previous.productInfo, ...partialInfo },
-    }));
+  // ===== patch state helpers =====
+  function patchProductInfo(partialInfo) {
+    setProductInfo((previous) => ({ ...previous, ...partialInfo }));
   }
 
-  function updateImages(partialImages) {
-    setState((previous) => ({
-      ...previous,
-      images: { ...previous.images, ...partialImages },
-    }));
+  function patchImages(partialImages) {
+    setImages((previous) => ({ ...previous, ...partialImages }));
   }
 
-  function updateSelections(partialSelections) {
-    setState((previous) => ({
-      ...previous,
-      selections: { ...previous.selections, ...partialSelections },
-    }));
+  function patchSelections(partialSelections) {
+    setSelections((previous) => ({ ...previous, ...partialSelections }));
   }
 
-  function updateTabDetails(partialTabDetails) {
-    setState((previous) => ({
-      ...previous,
-      tabDetails: { ...previous.tabDetails, ...partialTabDetails },
-    }));
+  function patchTabDetails(partialTabDetails) {
+    setTabDetails((previous) => ({ ...previous, ...partialTabDetails }));
   }
 
-  function updateReviews(partialReviews) {
-    setState((previous) => ({
-      ...previous,
-      reviews:
-        typeof partialReviews === "function"
-          ? partialReviews(previous.reviews)
-          : { ...previous.reviews, ...partialReviews },
-    }));
+  function patchReviews(partialReviews) {
+    setReviews((previous) =>
+      typeof partialReviews === "function"
+        ? partialReviews(previous)
+        : { ...previous, ...partialReviews },
+    );
   }
 
-  function updateRelatedProducts(items) {
-    setState((previous) => ({
-      ...previous,
-      relatedProducts: items,
-    }));
+  function patchLoading(partialLoading) {
+    setLoading((previous) => ({ ...previous, ...partialLoading }));
   }
 
-  function updateVariants(items) {
-    setState((previous) => ({
-      ...previous,
-      variants: items,
-    }));
-  }
-
-  function updateLoading(partialLoading) {
-    setState((previous) => ({
-      ...previous,
-      loading: { ...previous.loading, ...partialLoading },
-    }));
-  }
-
+  // ===== event handlers =====
   function handleThumbnailClick(image) {
-    updateImages({ main: image });
+    patchImages({ main: image });
   }
 
-  function handleSizeChange(event) {
-    updateSelections({ size: event.target.value, quantity: 1 });
-  }
+  function handleVariantChange(event) {
+    const nextVariantId = event.target.value;
+    const nextVariant = variantList.find(
+      (item) => String(item.id) === String(nextVariantId),
+    );
 
-  function handleColorChange(event) {
-    updateSelections({ color: event.target.value, quantity: 1 });
+    patchSelections({ variantId: nextVariantId, quantity: 1 });
+    patchImages({ main: resolveVariantImage(nextVariant, galleryImages[0]) });
   }
 
   function handleDecreaseQuantity() {
-    updateSelections({ quantity: Math.max(1, quantity - 1) });
+    patchSelections({ quantity: Math.max(1, quantity - 1) });
   }
 
   function handleIncreaseQuantity() {
-    updateSelections({ quantity: quantity + 1 });
+    patchSelections({ quantity: quantity + 1 });
   }
 
   function handleTabChange(tabKey) {
-    updateSelections({ activeTab: tabKey });
+    patchSelections({ activeTab: tabKey });
   }
 
   function handleReviewRatingChange(star) {
-    updateReviews({ rating: star });
+    patchReviews({ rating: star });
   }
 
   function handleReviewContentChange(event) {
-    updateReviews({ content: event.target.value });
+    patchReviews({ content: event.target.value });
   }
 
   function handleShowAllReviews() {
-    updateReviews({ showAll: true });
+    patchReviews({ showAll: true });
   }
 
   function handleCollapseReviews() {
-    updateReviews({ showAll: false });
+    patchReviews({ showAll: false });
   }
 
+  // ===== data loader =====
   async function loadProductData() {
-    updateLoading({ isLoading: true, error: "" });
+    patchLoading({ isLoading: true, error: "" });
     try {
-      const response = await requestAPI({
-        method: "GET",
-        url: `/products/${id}`,
-      });
-      const product = response?.data?.data || response?.data || {};
-      console.log("Chi tiết sản phẩm:", product);
-      const imageGallery = Array.isArray(product.images)
-        ? product.images
-        : Array.isArray(product.gallery)
-          ? product.gallery
-          : [product.featured_image || product.image || ANH_MAC_DINH];
-      const firstImage = imageGallery[0] || ANH_MAC_DINH;
+      const [detailResponse, listResponse] = await Promise.all([
+        requestAPI({ method: "GET", url: `/products/${id}` }),
+        requestAPI({ method: "GET", url: "/products/list" }),
+      ]);
 
-      updateImages({ main: firstImage, gallery: imageGallery });
-      updateProductInfo({
-        name: product.name || product.title || "Sản phẩm",
-        category: product.category_name || product.category || "Nội thất",
-        price:
-          Number(
-            String(product.price || product.base_price || 0).replace(
-              /[^\d]/g,
-              "",
-            ),
-          ) || 0,
-        oldPrice:
-          Number(
-            String(product.old_price || product.compare_at_price || 0).replace(
-              /[^\d]/g,
-              "",
-            ),
-          ) || 0,
-        description:
-          product.short_description || product.description || "Chưa cập nhật",
-        rating: Number(product.rating_avg || product.rating || 5),
-        reviewCount: Number(product.review_count || 0),
-      });
+      const detailStatus = detailResponse?.status || detailResponse?.data?.status;
+      if (Number(detailStatus) === 404) {
+        navigate("/404", {
+          replace: true,
+          state: { message: "Sản phẩm không tồn tại." },
+        });
+        return;
+      }
 
-      const parsedVariants = Array.isArray(product.variants)
-        ? product.variants.map((item) => parseVariantData(item))
+      const product = detailResponse?.data?.data || {};
+      if (Number(product?.status) !== 1) {
+        navigate("/404", {
+          replace: true,
+          state: { message: "Sản phẩm đã ngừng hiển thị." },
+        });
+        return;
+      }
+
+      const productList = Array.isArray(listResponse?.data?.data)
+        ? listResponse.data.data
         : [];
 
-      updateVariants(parsedVariants);
+      const normalizedDetail = normalizeDetailData(product);
+      const relatedItems = buildRelatedProducts(product, productList);
+      const initialVariant = normalizedDetail.variants.find(
+        (item) => String(item.id) === String(normalizedDetail.firstVariantId),
+      );
+      const initialMainImage = resolveVariantImage(
+        initialVariant,
+        normalizedDetail.images.main,
+      );
 
-      if (parsedVariants.length > 0) {
-        updateSelections({
-          size: parsedVariants[0].size || "",
-          color: parsedVariants[0].color || "",
-          quantity: 1,
-        });
-      }
-
-      if (parsedVariants.length > 0) {
-        updateProductInfo({ price: parsedVariants[0].price || 0 });
-      }
-
-      updateTabDetails({
-        descriptions: product.detail_content
-          ? String(product.detail_content)
-              .split("\n")
-              .map((item) => item.trim())
-              .filter(Boolean)
-          : [],
-        specifications: Array.isArray(product.specs)
-          ? product.specs.map((item) => ({
-              label: item.spec_name || "Thông số",
-              value: item.spec_value || "",
-            }))
-          : [],
-        shippingPolicy: Array.isArray(product.policies)
-          ? product.policies
-              .filter((item) =>
-                String(item.policy_type || "").toLowerCase().includes("shipping"),
-              )
-              .map((item) => item.content)
-          : [],
+      setImages({ ...normalizedDetail.images, main: initialMainImage });
+      setProductInfo(normalizedDetail.productInfo);
+      setTabDetails(normalizedDetail.tabDetails);
+      setVariants(normalizedDetail.variants);
+      patchSelections({
+        variantId: normalizedDetail.firstVariantId,
+        quantity: 1,
       });
-
-      const reviewItems = Array.isArray(product.reviews) ? product.reviews : [];
-      const formattedReviews = reviewItems.map((item) => ({
-        id: item.id || Math.random().toString(36),
-        name: resolveReviewAuthorName(item),
-        avatar: item.avatar || "https://placehold.co/100x100?text=U",
-        rating: Number(item.rating || 5),
-        date: formatReviewDate(item.created_at || item.date),
-        content: item.content || item.comment || "",
-        verified: Boolean(item.verified || item.purchased),
-      }));
-
-      updateReviews({
-        items: formattedReviews,
+      patchReviews({
+        items: normalizedDetail.reviews,
         message: "",
         isSubmitting: false,
         showAll: false,
       });
-      updateProductInfo({
-        reviewCount: Number(product.review_count || formattedReviews.length),
-      });
-
-      const relatedResponse = await requestAPI({
-        method: "GET",
-        url: "/products/list",
-      });
-      const relatedList = Array.isArray(relatedResponse?.data?.data)
-        ? relatedResponse.data.data
-        : Array.isArray(relatedResponse?.data)
-          ? relatedResponse.data
-          : [];
-
-      const relatedItems = relatedList
-        .filter((item) => String(item.id) !== String(product.id))
-        .filter(
-          (item) =>
-            (item.category_name || item.category) ===
-            (product.category_name || product.category),
-        )
-        .slice(0, 4)
-        .map((item) => ({
-          id: item.id,
-          name: item.name || item.title || "Sản phẩm",
-          price:
-            Number(
-              String(
-                item.price ||
-                  item.base_price ||
-                  item.old_price ||
-                  item.compare_at_price ||
-                  0,
-              ).replace(/[^\d]/g, ""),
-            ) || 0,
-          image:
-            item.featured_image ||
-            item.image ||
-            "https://placehold.co/600x600?text=PRODUCT",
-          category: item.category_name || item.category || "",
-          rating: Number(item.rating_avg || item.rating || 0),
-          hasRating: Boolean(item.rating_avg || item.rating),
-        }));
-        console.log("Sản phẩm liên quan:", relatedItems);
-
-      updateRelatedProducts(relatedItems);
+      setRelatedProducts(relatedItems);
     } catch (error) {
-      updateLoading({ error: error?.message || "Không tải được sản phẩm" });
+      if (Number(error?.response?.status) === 404) {
+        navigate("/404", {
+          replace: true,
+          state: { message: "Sản phẩm không tồn tại." },
+        });
+        return;
+      }
+      patchLoading({ error: error?.message || "Không tải được sản phẩm" });
     } finally {
-      updateLoading({ isLoading: false });
+      patchLoading({ isLoading: false });
     }
   }
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      navigate("/404", {
+        replace: true,
+        state: { message: "Không tìm thấy mã sản phẩm." },
+      });
+      return;
+    }
+
     loadProductData();
-  }, [id]);
+  }, [id, navigate]);
 
   async function submitReview() {
     if (!id) {
-      updateReviews({ message: "Không tìm thấy sản phẩm." });
+      patchReviews({ message: "Không tìm thấy sản phẩm." });
       return;
     }
     if (reviewRating < 1 || reviewRating > 5) {
-      updateReviews({ message: "Vui lòng chọn số sao từ 1 đến 5." });
+      patchReviews({ message: "Vui lòng chọn số sao từ 1 đến 5." });
       return;
     }
     if (!reviewContent.trim()) {
-      updateReviews({ message: "Vui lòng nhập nội dung đánh giá." });
+      patchReviews({ message: "Vui lòng nhập nội dung đánh giá." });
       return;
     }
 
-    updateReviews({ isSubmitting: true, message: "" });
+    patchReviews({ isSubmitting: true, message: "" });
     try {
-      const authorName = 'Bạn';
+      const authorName = "Bạn";
 
       await requestAPI({
         method: "POST",
@@ -509,20 +480,20 @@ const ProductDetail = () => {
         verified: false,
       };
 
-      updateReviews((previous) => ({
+      patchReviews((previous) => ({
         ...previous,
         items: [newReview, ...previous.items],
         rating: 5,
         content: "",
         message: "Đánh giá của bạn đã được gửi.",
       }));
-      updateProductInfo({ reviewCount: reviewCount + 1 });
+      patchProductInfo({ reviewCount: reviewCount + 1 });
     } catch (error) {
-      updateReviews({
+      patchReviews({
         message: error?.message || "Gửi đánh giá thất bại. Vui lòng thử lại.",
       });
     } finally {
-      updateReviews({ isSubmitting: false });
+      patchReviews({ isSubmitting: false });
     }
   }
 
@@ -597,11 +568,11 @@ const ProductDetail = () => {
               {productName}
             </h1>
 
-            {reviewCount > 0 && (
+            {computedReviewCount > 0 && (
               <div className="flex items-center gap-4 mb-6">
-                <FormRating rating={productRating} />
+                <FormRating rating={computedProductRating} />
                 <span className="text-sm text-textMuted font-medium underline cursor-pointer">
-                  ({reviewCount} đánh giá)
+                  ({computedReviewCount} đánh giá)
                 </span>
               </div>
             )}
@@ -615,69 +586,47 @@ const ProductDetail = () => {
               )}
             </div>
 
-            <p
-              className={`text-sm font-semibold mb-4 ${isOutOfStock ? "text-gray-400" : "text-green-600"}`}
-            >
-              {isOutOfStock
-                ? "Hết hàng"
-                : `Còn ${selectedStock} sản phẩm trong kho`}
-            </p>
-
             <p className="text-textMuted leading-relaxed mb-8 max-w-lg text-[15px]">
               {description}
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-8">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-primary">
-                  Chọn Kích Thước
-                </label>
-                <select
-                  value={selectedSize}
-                  onChange={handleSizeChange}
-                  className="w-full px-5 py-4 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition text-sm font-medium text-primary cursor-pointer"
-                >
-                  {sizeOptions.length > 0 ? (
-                    sizeOptions.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Nhỏ (1.6m)">Nhỏ (1.6m)</option>
-                      <option value="Vừa (2.0m)">Vừa (2.0m)</option>
-                      <option value="Lớn (2.4m)">Lớn (2.4m)</option>
-                    </>
-                  )}
-                </select>
+            {variantList.length > 0 && (
+              <div className="grid grid-cols-1 gap-5 mb-8">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-textMuted">
+                    Chọn biến thể
+                  </label>
+                  <div className="relative group">
+                    <select
+                      value={selectedVariantId}
+                      onChange={handleVariantChange}
+                      className="w-full appearance-none pl-5 pr-12 py-4 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-sm text-sm font-semibold text-primary cursor-pointer transition duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 group-hover:border-gray-300"
+                    >
+                      {variantList.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-500 transition-colors">
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 9l-7 7-7-7"
+                        ></path>
+                      </svg>
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-semibold text-primary">
-                  Chọn Màu Sắc
-                </label>
-                <select
-                  value={selectedColor}
-                  onChange={handleColorChange}
-                  className="w-full px-5 py-4 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500 transition text-sm font-medium text-primary cursor-pointer"
-                >
-                  {colorOptions.length > 0 ? (
-                    colorOptions.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Trắng Kem">Trắng Kem</option>
-                      <option value="Xám Khói">Xám Khói</option>
-                      <option value="Vàng Sồi">Vàng Sồi</option>
-                      <option value="Đen Tuyền">Đen Tuyền</option>
-                    </>
-                  )}
-                </select>
-              </div>
-            </div>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4 mb-10 items-stretch sm:items-center">
               <div className="flex items-center justify-between border-2 border-gray-100 rounded-xl px-4 py-3 w-32 bg-white shrink-0">
@@ -704,8 +653,7 @@ const ProductDetail = () => {
                 </span>
                 <button
                   onClick={handleIncreaseQuantity}
-                  disabled={isOutOfStock || quantity >= selectedStock}
-                  className="text-gray-400 hover:text-orange-500 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-gray-400 hover:text-orange-500 transition"
                 >
                   <svg
                     className="w-4 h-4"
@@ -723,10 +671,7 @@ const ProductDetail = () => {
                 </button>
               </div>
 
-              <button
-                disabled={isOutOfStock}
-                className={`flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 ${isOutOfStock ? "bg-gray-300 text-white cursor-not-allowed" : "bg-orange-500 text-white hover:bg-orange-600"}`}
-              >
+              <button className="flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 bg-orange-500 text-white hover:bg-orange-600">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -775,7 +720,7 @@ const ProductDetail = () => {
                     d="M5 13l4 4L19 7"
                   ></path>
                 </svg>
-                Còn hàng
+                Uy tín
               </span>
               <span className="flex items-center gap-2">
                 <svg
@@ -880,11 +825,11 @@ const ProductDetail = () => {
             <div className="lg:col-span-1">
               <div className="flex items-end gap-4 mb-3">
                 <div className="text-5xl font-bold text-primary leading-none">
-                  {productRating.toFixed(1)}
+                  {computedProductRating.toFixed(1)}
                 </div>
-                <FormRating rating={productRating} />
+                <FormRating rating={computedProductRating} />
               </div>
-              <p className="text-sm text-textMuted">{reviewCount} đánh giá</p>
+              <p className="text-sm text-textMuted">{computedReviewCount} đánh giá</p>
 
               <div className="mt-8 rounded-2xl border border-gray-100 bg-secondary/40 p-5">
                 <h3 className="text-lg font-bold text-primary mb-3 tracking-tight">
