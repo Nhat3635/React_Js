@@ -19,6 +19,8 @@ import Orders from './components/pages/client/profile/Orders';
 import Wishlist from './components/pages/client/profile/Wishlist';
 import EditProfile from './components/pages/client/profile/edit';
 import Checkout from './components/pages/client/checkout';
+import CheckoutSuccess from './components/pages/client/checkout/success';
+import CheckoutCancel from './components/pages/client/checkout/cancel';
 import Login from './components/pages/client/login';
 import Register from './components/pages/client/register';
 import ProductDetail from './components/pages/client/product-detail';
@@ -68,6 +70,8 @@ function App() {
             <Route path="edit" element={<EditProfile />} />
           </Route>
           <Route path="checkout" element={<ProtectedClient><Checkout /></ProtectedClient>} />
+          <Route path="checkout/success" element={<ProtectedClient><CheckoutSuccess /></ProtectedClient>} />
+          <Route path="checkout/cancel" element={<ProtectedClient><CheckoutCancel /></ProtectedClient>} />
           <Route path="login" element={<Login />} />
           <Route path="register" element={<Register />} />
           <Route path="forgot-password" element={<ForgotPassword />} />
