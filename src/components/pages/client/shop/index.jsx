@@ -10,9 +10,7 @@ const normalizeProducts = (payload) => {
       ? payload
       : [];
 
-  const activeItems = rawItems.filter(
-    (item) => Number(item?.status) === 1,
-  );
+  const activeItems = rawItems.filter((item) => Number(item?.status) === 1);
 
   return activeItems.map((item, index) => {
     const priceValue =
@@ -32,10 +30,7 @@ const normalizeProducts = (payload) => {
       brand:
         item.brand_name ?? item.brand ?? item.manufacturer ?? "SmartLiving",
       category:
-        item.category_name ??
-        item.category ??
-        item.category_title ??
-        "Nội thất",
+        item.category_name ?? item.category ?? item.category_title ?? "Nội thất",
       image:
         item.featured_image ??
         item.image ??
@@ -67,10 +62,7 @@ const formatStars = (rating = 0) => {
         <i className="bi bi-star-fill"></i>
         <i className="bi bi-star-fill"></i>
       </div>
-      <div
-        className="stars-inner"
-        style={{ width: `${percentage}%` }}
-      >
+      <div className="stars-inner" style={{ width: `${percentage}%` }}>
         <i className="bi bi-star-fill"></i>
         <i className="bi bi-star-fill"></i>
         <i className="bi bi-star-fill"></i>
@@ -306,7 +298,6 @@ const Shop = () => {
       </li>
     );
   });
-
   const brandFilterItems = availableBrands.map(function (brand) {
     const brandId = `brand-${String(brand)
       .toLowerCase()

@@ -29,6 +29,13 @@ const CategoryManagement = () => {
     setToast((prev) => ({ ...prev, show: false }));
   }, []);
 
+  const getProductCount = React.useCallback((item) => {
+    const rawCount = item?.product_count;
+    const parsedCount = Number(rawCount);
+
+    return Number.isFinite(parsedCount) && parsedCount > 0 ? parsedCount : 0;
+  }, []);
+
   const loadCategories = React.useCallback(async () => {
     try {
       setIsLoading(true);
@@ -75,6 +82,29 @@ const CategoryManagement = () => {
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  const requestDelete = (id) => {
+    const targetCategory = (Array.isArray(categories) ? categories : []).find(
+      (item) => String(item.id) === String(id),
+    );
+
+    if (getProductCount(targetCategory) > 0) {
+      showToast("Khong the xoa danh muc da co san pham", "error");
+      return;
+    }
+
+    setPendingDeleteId(id);
+  };
+
+  const cancelDelete = () => {
+    setPendingDeleteId(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await onDelete(pendingDeleteId);
+    setPendingDeleteId(null);
   };
 
   const filteredCategories = (
@@ -239,7 +269,7 @@ const CategoryManagement = () => {
                     </td>
                     <td className="p-5 text-center">
                       <span className="text-sm font-bold text-primary">
-                        {item.product_count || 0}
+                        {getProductCount(item)}
                       </span>
                     </td>
                     <td className="p-5">
@@ -284,8 +314,14 @@ const CategoryManagement = () => {
                           </svg>
                         </Link>
                         <button
-                          onClick={() => setPendingDeleteId(item.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                          onClick={() => requestDelete(item.id)}
+                          disabled={getProductCount(item) > 0}
+                          title={
+                            getProductCount(item) > 0
+                              ? `Danh muc dang co ${getProductCount(item)} san pham`
+                              : "Xoa"
+                          }
+                          className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-50 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-400"
                         >
                           <svg
                             className="w-4 h-4"
@@ -314,8 +350,8 @@ const CategoryManagement = () => {
         isOpen={!!pendingDeleteId}
         title="Xác nhận xóa danh mục"
         message="Bạn có chắc chắn muốn xóa danh mục này không? Hành động này không thể hoàn tác."
-        onConfirm={() => onDelete(pendingDeleteId)}
-        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
         isLoading={isDeleting}
       />
     </div>
