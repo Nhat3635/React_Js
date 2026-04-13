@@ -277,11 +277,9 @@ const OrderDetail = () => {
   const statusHint =
     displayedStatus === "Đã hủy"
       ? "Đơn hàng đã hủy nên không thể thay đổi trạng thái."
-      : displayedStatus === "Chờ xác nhận"
-        ? "Đơn hàng chờ xác nhận không thể chuyển về Đang xử lý."
-        : displayedStatus === "Đang giao"
-          ? "Đang giao không thể chuyển về Đang xử lý hoặc Chờ xác nhận."
-          : "Có thể cập nhật trạng thái tùy theo trạng thái hiện tại.";
+      : displayedStatus === "Đang giao"
+        ? "Đang giao không thể chuyển về Đang xử lý hoặc Chờ xác nhận."
+        : "Có thể cập nhật trạng thái tùy theo trạng thái hiện tại.";
 
   React.useEffect(() => {
     if (order?.status) {
@@ -291,9 +289,6 @@ const OrderDetail = () => {
 
   const canChooseStatus = (targetStatus) => {
     if (!canEditStatus) return false;
-    if (displayedStatus === "Chờ xác nhận") {
-      return targetStatus !== "Đang xử lý";
-    }
     if (displayedStatus === "Đang giao") {
       return targetStatus !== "Đang xử lý" && targetStatus !== "Chờ xác nhận";
     }
