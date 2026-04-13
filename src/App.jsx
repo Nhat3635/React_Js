@@ -97,7 +97,7 @@ function App() {
           <Route path="orders/detail/:id" element={<OrderDetail />} />
           <Route path="payment-methods" element={<PaymentManagement />} />
           <Route path="users" element={<UserManagement />} />
-          <Route path="users/edit" element={<EditUser />} />
+          <Route path="users/edit/:id" element={<EditUser />} />
           <Route path="reports" element={<SalesReport />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="blogs" element={<BlogManagement />} />
