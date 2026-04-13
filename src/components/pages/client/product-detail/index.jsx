@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import requestAPI from "../../../../api";
+import Toast from "../../../ui/common/Toast";
 import "./style.css";
 
 // Ảnh mặc định nếu không có ảnh sản phẩm
@@ -239,6 +240,16 @@ const ProductDetail = () => {
     isLoading: false,
     error: "",
   });
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+      setToast({ show: true, message, type });
+  };
+
+  const closeToast = () => {
+      setToast((prev) => ({ ...prev, show: false }));
+  };
 
   const productName = productInfo.name;
   const categoryName = productInfo.category;
@@ -349,6 +360,39 @@ const ProductDetail = () => {
 
   function handleCollapseReviews() {
     patchReviews({ showAll: false });
+  }
+
+  async function handleAddToCart() {
+    if (!id || !selectedVariantId) {
+      showToast("Vui lòng chọn đầy đủ thuộc tính sản phẩm", "error");
+      return;
+    }
+
+    setIsAddingToCart(true);
+    try {
+      await requestAPI({
+        method: "POST",
+        url: "/carts/items/add",
+        data: {
+          product_id: parseInt(id),
+          variant_id: parseInt(selectedVariantId),
+          quantity: parseInt(quantity),
+          unit_price: parseFloat(currentPrice),
+          variant_name: selectedVariant ? selectedVariant.name : "",
+          variant_image: resolveVariantImage(selectedVariant, galleryImages[0]),
+          product_name: productName
+        }
+      });
+      // Fire generic event to update header badge
+      window.dispatchEvent(new Event("cart_update"));
+      showToast("Thêm vào giỏ hàng thành công", "success");
+    } catch (error) {
+      console.error("Lỗi thêm vào giỏ hàng:", error);
+      const msg = error.response?.data?.message || "Lỗi khi thêm vào giỏ hàng";
+      showToast(msg, "error");
+    } finally {
+      setIsAddingToCart(false);
+    }
   }
 
   // ===== data loader =====
@@ -506,6 +550,7 @@ const ProductDetail = () => {
 
   return (
     <div>
+      <Toast show={toast.show} message={toast.message} type={toast.type} onClose={closeToast} />
       <main className="mt-20 max-w-7xl mx-auto px-6 py-10 md:px-12 w-full flex-grow">
         <nav className="flex text-sm text-textMuted mb-8 font-medium">
           <Link to="/" className="hover:text-orange-500 transition">
@@ -671,21 +716,28 @@ const ProductDetail = () => {
                 </button>
               </div>
 
-              <button className="flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 bg-orange-500 text-white hover:bg-orange-600">
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  ></path>
-                </svg>
-                Thêm vào giỏ hàng
+              <button onClick={handleAddToCart} disabled={isAddingToCart} className="flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-75 disabled:cursor-not-allowed">
+                {isAddingToCart ? (
+                    <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      ></path>
+                    </svg>
+                )}
+                {isAddingToCart ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
               </button>
 
               <button className="w-14 h-14 border-2 border-gray-200 rounded-xl flex items-center justify-center text-textMuted hover:text-red-500 hover:border-red-500 hover:bg-red-50 transition shrink-0">

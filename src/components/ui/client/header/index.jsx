@@ -1,10 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import requestAPI from '../../../../api';
+
 const Header = () => {
     const [isScrolled, setIsScrolled] = useState(false);
+    const [cartCount, setCartCount] = useState(0);
     const searchInputRef = useRef(null);
     const location = useLocation();
     const isHomePage = location.pathname === '/' || location.pathname === '/shop' || location.pathname === '/about';
+
+    const fetchCartCount = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) return;
+            const response = await requestAPI({ method: "GET", url: "/carts" });
+            const count = response?.data?.data?.total_items || 0;
+            setCartCount(count);
+        } catch (error) {
+            console.error("Lỗi lấy số lượng giỏ hàng:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchCartCount();
+
+        const handleCartUpdate = () => fetchCartCount();
+        window.addEventListener("cart_update", handleCartUpdate);
+
+        return () => window.removeEventListener("cart_update", handleCartUpdate);
+    }, []);
 
     // Tính năng: Lắng nghe sự kiện cuộn trang từ script.js cũ
     useEffect(() => {
@@ -142,9 +166,11 @@ const Header = () => {
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
-                    <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-transparent">
-                        2
-                    </span>
+                    {cartCount > 0 && (
+                        <span className="absolute -top-1 -right-3 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-transparent">
+                            {cartCount > 99 ? '99+' : cartCount}
+                        </span>
+                    )}
                 </Link>
 
                 {/* Account Icon */}

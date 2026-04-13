@@ -211,10 +211,10 @@ const OrderDetail = () => {
   React.useEffect(() => {
     const loadOrder = async () => {
       if (!id) {
-        navigate("/404", {
+        navigate("/admin/order-not-found", {
           replace: true,
           state: {
-            message: "Không tìm thấy đơn hàng.",
+            message: "Mã đơn hàng không hợp lệ.",
           },
         });
         return;
@@ -231,10 +231,10 @@ const OrderDetail = () => {
         const data = response?.data?.data || response?.data || null;
 
         if (!data) {
-          navigate("/404", {
+          navigate("/admin/order-not-found", {
             replace: true,
             state: {
-              message: "Không tìm thấy đơn hàng.",
+              message: "Đơn hàng bạn đang tìm kiếm không tồn tại trong hệ thống.",
             },
           });
           return;
@@ -250,10 +250,10 @@ const OrderDetail = () => {
           message.includes("404");
 
         if (isNotFoundError) {
-          navigate("/404", {
+          navigate("/admin/order-not-found", {
             replace: true,
             state: {
-              message: "Không tìm thấy đơn hàng.",
+              message: "Đơn hàng không tồn tại hoặc bạn không có quyền truy cập.",
             },
           });
           return;

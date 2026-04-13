@@ -327,27 +327,12 @@ const Checkout = () => {
                   <input
                     type="radio"
                     name="payment"
-                    value="BANK_TRANSFER"
-                    className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
-                    {...register("payment")}
-                  />
-                  <span className="ml-3 font-medium text-primary flex flex-col">
-                    <span>Chuyển khoản trực tiếp (Ngân hàng)</span>
-                    <span className="text-xs text-textMuted mt-1">
-                      Thông tin tài khoản sẽ hiển thị sau khi đặt hàng
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-center p-4 border border-gray-200 hover:border-orange-300 hover:bg-orange-50/30 rounded-xl cursor-pointer transition">
-                  <input
-                    type="radio"
-                    name="payment"
                     value="EWALLET"
                     className="w-4 h-4 text-orange-500 border-gray-300 focus:ring-orange-500"
                     {...register("payment")}
                   />
                   <span className="ml-3 font-medium text-primary">
-                    Ví điện tử MoMo / ZaloPay
+                    Chuyển khoản ngân hàng E-Wallet
                   </span>
                 </label>
               </div>

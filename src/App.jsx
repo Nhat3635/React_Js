@@ -51,6 +51,7 @@ import BlogManagement from './components/pages/admin/blog';
 import CreateBlog from './components/pages/admin/blog/create';
 import EditBlog from './components/pages/admin/blog/edit';
 import NotFoundPage from './components/pages/not-found';
+import NotFoundAdmin from './components/pages/not-found-admin';
 
 function App() {
   return (
@@ -79,6 +80,8 @@ function App() {
           <Route path="product-detail/:id" element={<ProductDetail />} />
           <Route path="blog" element={<Blog />} />
           <Route path="blog-detail/:id" element={<BlogDetail />} />
+          {/* 404 cho Client nếu nhập sai route trong layout client */}
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
 
         {/* Nhóm giao diện của Admin (Có Header) */}
@@ -100,6 +103,8 @@ function App() {
           <Route path="blogs" element={<BlogManagement />} />
           <Route path="blogs/create" element={<CreateBlog />} />
           <Route path="blogs/edit/:id" element={<EditBlog />} />
+          {/* 404 cho Admin nếu nhập sai route trong layout admin */}
+          <Route path="*" element={<NotFoundAdmin />} />
         </Route>
 
         <Route path="/404" element={<NotFoundPage />} />

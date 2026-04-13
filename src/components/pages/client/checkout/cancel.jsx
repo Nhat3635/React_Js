@@ -31,10 +31,10 @@ const CheckoutCancel = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Link
-                        to={`/user/orders`}
+                        to={`/shop`}
                         className="inline-block bg-secondary text-primary px-8 py-4 rounded-full font-bold hover:bg-gray-200 transition duration-300"
                     >
-                        Quản lý đơn hàng
+                        Tiếp tục mua sắm
                     </Link>
                     <Link
                         to="/"

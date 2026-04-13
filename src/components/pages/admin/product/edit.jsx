@@ -157,7 +157,12 @@ const EditProduct = () => {
         setSizeValues(Array.isArray(sizeRes?.data?.data) ? sizeRes.data.data : Array.isArray(sizeRes?.data) ? sizeRes.data : []);
       }
     } catch (err) {
-      showToast(err.message || "Lỗi tải dữ liệu", "error");
+      console.error("Lỗi tải sản phẩm:", err);
+      // Redirect to admin 404 if product not found
+      navigate("/admin/404-not-found", { 
+        replace: true, 
+        state: { message: "Sản phẩm bạn đang cố chỉnh sửa không tồn tại hoặc đã bị xóa." } 
+      });
     } finally {
       setIsLoading(false);
     }

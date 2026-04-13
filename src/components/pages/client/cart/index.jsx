@@ -59,6 +59,7 @@ const Cart = () => {
                 method: "DELETE",
                 url: `/carts/items/${itemId}`
             });
+            window.dispatchEvent(new Event("cart_update"));
             
             showToast("Xóa sản phẩm thành công");
         } catch (error) {
@@ -107,6 +108,7 @@ const Cart = () => {
                 url: `/carts/items/${itemId}`,
                 data: { quantity: newQuantity }
             });
+            window.dispatchEvent(new Event("cart_update"));
             
             showToast("Cập nhật số lượng thành công");
         } catch (error) {

@@ -302,7 +302,7 @@ const Home = () => {
         <div className="md:w-1/2 flex h-[500px] md:h-[600px] gap-4">
           <div className="w-[55%] h-full">
             <img
-              src="https://images.unsplash.com/photo-1540932239986-30128078f3ac?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+              src="https://images.unsplash.com/photo-1631679706909-1844bbd07221?auto=format&fit=crop&q=80&w=1000"
               alt="Material Detail 1"
               className="w-full h-full object-cover rounded-[32px] shadow-lg hover:scale-[1.02] transition duration-500 cursor-pointer object-left-bottom"
             />

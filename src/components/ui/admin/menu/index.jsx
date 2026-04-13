@@ -60,10 +60,13 @@ const AdminMenu = () => {
             </div>
 
             <div className="p-4 mb-4">
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all font-medium border border-transparent hover:border-red-100">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-                    Đăng xuất
-                </button>
+                <Link 
+                    to="/" 
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-orange-500 hover:bg-orange-50 hover:text-orange-600 transition-all font-bold border border-transparent hover:border-orange-100"
+                >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"></path></svg>
+                    Quay về trang Client
+                </Link>
             </div>
         </aside>
     );

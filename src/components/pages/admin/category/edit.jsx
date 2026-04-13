@@ -94,7 +94,11 @@ const EditCategory = () => {
                     image: data.image || '',
                 });
             } catch (err) {
-                setLoadError(err.message || 'Không thể tải chi tiết danh mục');
+                console.error('Lỗi tải danh mục:', err);
+                navigate('/admin/category-not-found', { 
+                    replace: true, 
+                    state: { message: 'Danh mục bạn đang tìm kiếm không tồn tại hoặc đã bị gỡ bỏ khỏi hệ thống quản trị.' } 
+                });
             } finally {
                 setIsLoading(false);
             }
