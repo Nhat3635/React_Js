@@ -64,17 +64,12 @@ const formatStars = (rating = 0) => {
 };
 
 const Home = () => {
-  const categories = [
-    { id: "chair", name: "Ghế", dbId: 8 },
-    { id: "beds", name: "Giường", dbId: 5 },
-    { id: "sofa", name: "Sofa", dbId: 1 },
-    { id: "lamp", name: "Gương/Đèn", dbId: 10 },
-  ];
-
   const [homeState, setHomeState] = useState({
-    activeCategory: "chair",
+    activeCategory: null,
+    categories: [],
     products: [],
     isLoadingProducts: true,
+    isLoadingCategories: true,
     productError: "",
   });
 
@@ -85,37 +80,60 @@ const Home = () => {
     setHomeState((prev) => ({ ...prev, ...partialState }));
   }, []);
 
-  const loadHomeProducts = async () => {
+const loadData = async () => {
     try {
-      updateHomeState({ isLoadingProducts: true, productError: "" });
-      const response = await requestAPI({
+      updateHomeState({ isLoadingProducts: true, isLoadingCategories: true });
+
+      // 1. Lấy danh mục
+      const catRes = await requestAPI({
+        method: "GET",
+        url: "/categories/list",
+      });
+      
+      console.log("Dữ liệu category từ API:", catRes); // Debug để xem cấu trúc thật
+
+      // Kiểm tra kỹ cấu trúc: Nếu catRes.data.data là mảng thì lấy, không thì thử catRes.data, cuối cùng là mảng rỗng
+      let fetchedCategories = [];
+      if (Array.isArray(catRes?.data)) {
+        fetchedCategories = catRes.data;
+      } else if (Array.isArray(catRes?.data?.data)) {
+        fetchedCategories = catRes.data.data;
+      }
+
+      // 2. Lấy sản phẩm
+      const prodRes = await requestAPI({
         method: "GET",
         url: "/products/list",
       });
-      const allProducts = normalizeHomeProducts(response?.data);
-      updateHomeState({ products: allProducts.filter((p) => p.status === 1) });
+      const allProducts = normalizeHomeProducts(prodRes?.data);
+
+      updateHomeState({
+        categories: fetchedCategories,
+        // Set danh mục mặc định là ID của phần tử đầu tiên nếu có
+        activeCategory: fetchedCategories.length > 0 ? fetchedCategories[0].id : null,
+        products: allProducts.filter((p) => p.status === 1),
+      });
     } catch (error) {
+      console.error("Lỗi lấy dữ liệu:", error);
       updateHomeState({
         products: [],
+        categories: [],
         productError: "Không thể kết nối đến máy chủ",
       });
     } finally {
-      updateHomeState({ isLoadingProducts: false });
+      updateHomeState({ isLoadingProducts: false, isLoadingCategories: false });
     }
   };
 
   useEffect(() => {
-    loadHomeProducts();
+    loadData();
   }, []);
-  
-  const filteredProducts = useMemo(() => {
-    const currentCat = categories.find(
-      (c) => c.id === homeState.activeCategory,
-    );
-    if (!currentCat) return [];
 
+  const filteredProducts = useMemo(() => {
+    if (!homeState.activeCategory || !Array.isArray(homeState.products)) return [];
+    
     const matched = homeState.products.filter(
-      (item) => Number(item.category_id) === currentCat.dbId,
+      (item) => Number(item.category_id) === Number(homeState.activeCategory)
     );
     return matched.length > 0 ? matched.slice(0, 8) : [];
   }, [homeState.activeCategory, homeState.products]);
@@ -131,7 +149,7 @@ const Home = () => {
 
   return (
     <main className="bg-white">
-      {/* 1. HERO SECTION (GIỮ NGUYÊN GIAO DIỆN CỦA BẠN) */}
+      {/* 1. HERO SECTION */}
       <section className="relative w-full h-[700px] md:h-[800px] overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -162,7 +180,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 2. BEST SELLING SECTION (PHẦN BẠN CẦN LÀM ĐỦ) */}
+      {/* 2. BEST SELLING SECTION */}
       <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto bg-secondary/30 rounded-[64px] my-10">
         <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
           <div className="max-w-md">
@@ -176,19 +194,25 @@ const Home = () => {
           </div>
 
           <div className="flex space-x-2 bg-gray-100 p-1.5 rounded-full border border-gray-200 overflow-x-auto no-scrollbar">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => updateHomeState({ activeCategory: cat.id })}
-                className={`px-8 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${
-                  homeState.activeCategory === cat.id
-                    ? "bg-white text-primary shadow-md"
-                    : "text-gray-500 hover:text-primary"
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
+            {homeState.isLoadingCategories ? (
+              <div className="px-8 py-2.5 text-gray-400">Đang tải...</div>
+            ) : Array.isArray(homeState.categories) && homeState.categories.length > 0 ? (
+              homeState.categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => updateHomeState({ activeCategory: cat.id })}
+                  className={`px-8 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all duration-300 ${
+                    homeState.activeCategory === cat.id
+                      ? "bg-white text-primary shadow-md"
+                      : "text-gray-500 hover:text-primary"
+                  }`}
+                >
+                  {cat.name}
+                </button>
+              ))
+            ) : (
+              <div className="px-8 py-2.5 text-gray-400 text-sm">Không có danh mục</div>
+            )}
           </div>
         </div>
 
@@ -254,7 +278,6 @@ const Home = () => {
             )}
           </div>
 
-          {/* Navigation Buttons */}
           <button
             onClick={() => scroll(-1)}
             className="absolute -left-6 top-1/2 -translate-y-1/2 w-14 h-14 bg-white rounded-full shadow-xl flex justify-center items-center text-primary hover:bg-primary hover:text-white transition-all opacity-0 group-hover:opacity-100 z-10 border border-gray-100"
@@ -270,7 +293,7 @@ const Home = () => {
         </div>
       </section>
 
-      {/* 3. EXPERIENCES & MATERIALS (GIỮ NGUYÊN ĐỂ KHÔNG MẤT GIAO DIỆN) */}
+      {/* 3. EXPERIENCES & MATERIALS */}
       <section className="py-24 px-6 md:px-12 max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center">
         <div className="relative">
           <div className="absolute -inset-4 bg-orange-100 rounded-[40px] -rotate-3"></div>
@@ -412,32 +435,6 @@ const Home = () => {
               </div>
             </div>
             {/* Card 3 */}
-            <div className="w-full md:w-[calc(33.333%-1rem)] shrink-0 snap-center relative h-[450px] rounded-xl overflow-hidden shadow-lg border border-gray-100/50 hover:shadow-2xl transition duration-500">
-              <img
-                src="https://images.unsplash.com/photo-1598928506311-c55f43f22876?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-                alt="Review 3 Interior"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
-              <div className="absolute bottom-4 left-4 right-4 bg-white rounded-xl p-6 shadow-xl text-center flex flex-col items-center pt-8 hover:-translate-y-1 transition duration-500">
-                <img
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=150&q=80"
-                  alt="Reviewer 3"
-                  className="w-14 h-14 rounded-full border-[3px] border-white shadow-md absolute -top-7 left-1/2 -translate-x-1/2 object-cover bg-white"
-                />
-                <h4 className="font-bold text-primary text-base">Mpok Ina</h4>
-                <p className="text-[10px] text-textMuted mb-3">
-                  Nhân viên văn phòng
-                </p>
-                <p className="text-[11px] text-textMuted mb-2 leading-relaxed px-2">
-                  "Giá cả rất phải chăng cho ngân sách không quá lớn của tôi.
-                  Giao hàng vô cùng an toàn và cẩn thận."
-                </p>
-                <div className="flex space-x-1 text-orange-400 text-xs mt-auto">
-                  ★★★★★
-                </div>
-              </div>
-            </div>
             <div className="w-full md:w-[calc(33.333%-1rem)] shrink-0 snap-center relative h-[450px] rounded-xl overflow-hidden shadow-lg border border-gray-100/50 hover:shadow-2xl transition duration-500">
               <img
                 src="https://images.unsplash.com/photo-1598928506311-c55f43f22876?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
