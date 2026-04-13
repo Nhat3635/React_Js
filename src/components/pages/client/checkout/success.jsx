@@ -1,8 +1,42 @@
+import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import requestAPI from "../../../../api";
 
 const CheckoutSuccess = () => {
     const [searchParams] = useSearchParams();
     const orderId = searchParams.get("orderId");
+    const orderCode = searchParams.get("orderCode");
+    const status = searchParams.get("status");
+    const cancel = searchParams.get("cancel");
+    const code = searchParams.get("code");
+    const id = searchParams.get("id");
+
+    const syncPayload = useMemo(() => ({
+        orderId,
+        orderCode,
+        status,
+        cancel,
+        code,
+        payosLinkId: id,
+    }), [orderId, orderCode, status, cancel, code, id]);
+
+    useEffect(() => {
+        if (!orderId && !orderCode) return;
+
+        const syncStatus = async () => {
+            try {
+                await requestAPI({
+                    method: "POST",
+                    url: "/orders/payos/return-sync",
+                    data: syncPayload,
+                });
+            } catch (error) {
+                console.error("Lỗi đồng bộ trạng thái đơn hàng khi PayOS trả về thành công:", error);
+            }
+        };
+
+        syncStatus();
+    }, [orderId, orderCode, syncPayload]);
 
     return (
         <div className="min-h-[60vh] mt-20 max-w-3xl mx-auto px-6 py-16 w-full flex-grow flex items-center justify-center">

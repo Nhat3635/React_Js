@@ -1,8 +1,44 @@
+import { useEffect, useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import requestAPI from "../../../../api";
 
 const CheckoutCancel = () => {
     const [searchParams] = useSearchParams();
     const orderId = searchParams.get("orderId");
+    const orderCode = searchParams.get("orderCode");
+    const status = searchParams.get("status");
+    const cancel = searchParams.get("cancel");
+    const code = searchParams.get("code");
+    const id = searchParams.get("id");
+
+    const syncPayload = useMemo(() => ({
+        orderId,
+        orderCode,
+        status,
+        cancel,
+        code,
+        payosLinkId: id,
+    }), [orderId, orderCode, status, cancel, code, id]);
+
+    useEffect(() => {
+        if (!orderId && !orderCode) return;
+
+        const syncStatus = async () => {
+            console.log("Client calling sync API with:", syncPayload);
+            try {
+                const response = await requestAPI({
+                    method: "POST",
+                    url: "/orders/payos/return-sync",
+                    data: syncPayload,
+                });
+                console.log("Sync API response:", response.data);
+            } catch (error) {
+                console.error("Lỗi đồng bộ trạng thái đơn hàng khi hủy PayOS:", error.response?.data || error.message);
+            }
+        };
+
+        syncStatus();
+    }, [orderId, orderCode, syncPayload]);
 
     return (
         <div className="min-h-[60vh] mt-20 max-w-3xl mx-auto px-6 py-16 w-full flex-grow flex items-center justify-center">
@@ -27,7 +63,7 @@ const CheckoutCancel = () => {
                     Bạn đã hủy giao dịch thanh toán trực tuyến cho đơn hàng <span className="font-bold text-primary">#{orderId}</span>.
                 </p>
                 <p className="text-textMuted mb-10 text-sm md:text-base leading-relaxed">
-                    Đơn hàng của bạn hiện đang ở trạng thái chờ thanh toán. Bạn có thể tiến hành thanh toán lại trong phần quản lý đơn hàng.
+                    Đơn hàng của bạn đã được xác nhận hủy thanh toán theo phản hồi từ PayOS. Bạn có thể đặt lại đơn mới hoặc thanh toán lại ở lần mua sau.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Link
