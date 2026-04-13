@@ -24,7 +24,7 @@ const OrderManagement = () => {
       return "Hoàn thành";
     }
     if (normalized === "pending" || normalized === "chờ thanh toán") {
-      return "Chờ thanh toán";
+      return "Chờ xác nhận";
     }
     if (normalized === "cancelled" || normalized === "đã hủy") {
       return "Đã hủy";
@@ -41,7 +41,7 @@ const OrderManagement = () => {
         return "bg-green-50 text-green-600 border-green-100";
       case "Đang giao":
         return "bg-blue-50 text-blue-600 border-blue-100";
-      case "Chờ thanh toán":
+      case "Chờ xác nhận":
         return "bg-purple-50 text-purple-600 border-purple-100";
       case "Đã hủy":
         return "bg-red-50 text-red-600 border-red-100";
@@ -184,7 +184,7 @@ const OrderManagement = () => {
             <option value="Đang xử lý">Đang xử lý</option>
             <option value="Đang giao">Đang giao</option>
             <option value="Hoàn thành">Hoàn thành</option>
-            <option value="Chờ thanh toán">Chờ thanh toán</option>
+            <option value="Chờ xác nhận">Chờ xác nhận</option>
             <option value="Đã hủy">Đã hủy</option>
           </select>
         </div>
