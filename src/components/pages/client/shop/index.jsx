@@ -405,7 +405,7 @@ const Shop = () => {
                     </div>
                     <Link
                       to={`/product-detail/${product.id}`}
-                      className="text-lg font-semibold text-primary mb-1 hover:text-orange-500 transition"
+                      className="text-lg font-semibold text-primary mb-1 hover:text-orange-500 transition line-clamp-2"
                     >
                       {product.name}
                     </Link>

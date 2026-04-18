@@ -310,7 +310,7 @@ const CreateProduct = () => {
       }
 
       showToast("Tạo sản phẩm thành công!");
-      setTimeout(() => navigate("/admin/products"), 1500);
+      setTimeout(() => navigate("/admin/products", { state: { refresh: true } }), 1500);
     } catch (err) {
       console.error("Create Error:", err);
       const errorMsg = err.response?.data?.message || err.message || "";

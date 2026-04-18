@@ -238,7 +238,7 @@ const Cart = () => {
 
                                         {/* Product Info */}
                                         <div className="flex-grow pr-10 flex flex-col self-stretch justify-center h-full">
-                                            <h3 className="text-lg font-bold text-primary mb-1">
+                                            <h3 className="text-lg font-bold text-primary mb-1 line-clamp-2">
                                                 <Link to={`/product-detail/${item.product_id}`} className="hover:text-orange-500 transition">
                                                     {item.product_name}
                                                 </Link>

@@ -300,7 +300,8 @@ const ProductDetail = () => {
 
   // Thêm vào giỏ hàng
   async function handleAddToCart() {
-    if (!id || !variantId) {
+    // Nếu sản phẩm có variant thì bắt chọn variant
+    if (variants.length > 0 && !variantId) {
       showToast("Vui lòng chọn đầy đủ thuộc tính sản phẩm", "error");
       return;
     }
@@ -311,7 +312,7 @@ const ProductDetail = () => {
         url: "/carts/items/add",
         data: {
           product_id: parseInt(id),
-          variant_id: parseInt(variantId),
+          variant_id: variantId ? parseInt(variantId) : null,
           quantity: quantity,
           unit_price: parseFloat(currentPrice),
           variant_name: selectedVariant?.name || "",

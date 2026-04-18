@@ -1,10 +1,11 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
 import DeleteConfirmationModal from "../../../ui/common/DeleteModal";
 
 const ProductManagement = () => {
+  const location = useLocation();
   const [products, setProducts] = React.useState([]);
   const [categories, setCategories] = React.useState([]);
   const [searchText, setSearchText] = React.useState("");
@@ -37,7 +38,7 @@ const ProductManagement = () => {
 
       // Fetch products and categories in parallel
       const [productsRes, categoriesRes] = await Promise.all([
-        requestAPI({ method: "GET", url: "/products/list?limit=100" }),
+        requestAPI({ method: "GET", url: "/admin/products/list?limit=1000" }),
         requestAPI({ method: "GET", url: "/categories/list" }),
       ]);
 
@@ -67,7 +68,14 @@ const ProductManagement = () => {
 
   React.useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
+
+  React.useEffect(() => {
+    // Reload data when navigating back with refresh flag
+    if (location.state?.refresh) {
+      loadData();
+    }
+  }, [location.state?.refresh, loadData]);
 
   React.useEffect(() => {
     setCurrentPage(1);

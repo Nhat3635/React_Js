@@ -120,6 +120,7 @@ const Checkout = () => {
         ward_code: parseInt(formData.ward_code),
         payment_method: formData.payment || "COD",
         items: cart?.items?.map(item => ({
+          product_id: item.product_id,
           variant_id: item.variant_id,
           quantity: item.quantity,
           price_at_purchase: item.unit_price
