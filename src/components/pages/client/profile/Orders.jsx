@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import requestAPI from "../../../../api/index.jsx";
 
 const statusMap = {
-    Pending: { label: "Chờ xử lý", bg: "bg-yellow-50", text: "text-yellow-600", dot: "bg-yellow-500" },
-    Processing: { label: "Đang xử lý", bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500" },
-    Shipped: { label: "Đang giao", bg: "bg-indigo-50", text: "text-indigo-600", dot: "bg-indigo-500" },
-    Delivered: { label: "Đã giao", bg: "bg-green-50", text: "text-green-600", dot: "bg-green-500" },
-    Cancelled: { label: "Đã hủy", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
+    pending: { label: "Chờ xác nhận", bg: "bg-yellow-50", text: "text-yellow-600", dot: "bg-yellow-500" },
+    processing: { label: "Đang xử lý", bg: "bg-blue-50", text: "text-blue-600", dot: "bg-blue-500" },
+    shipped: { label: "Đang giao", bg: "bg-indigo-50", text: "text-indigo-600", dot: "bg-indigo-500" },
+    delivered: { label: "Hoàn thành", bg: "bg-green-50", text: "text-green-600", dot: "bg-green-500" },
+    cancelled: { label: "Đã hủy", bg: "bg-red-50", text: "text-red-600", dot: "bg-red-500" },
 };
 
 const Orders = () => {
@@ -38,8 +38,21 @@ const Orders = () => {
         return Number(amount).toLocaleString("vi-VN") + "₫";
     };
 
+    const normalizeStatusKey = (status) => {
+        const normalized = String(status || "").trim().toLowerCase();
+
+        if (normalized === "pending" || normalized === "chờ xác nhận" || normalized === "chờ thanh toán") return "pending";
+        if (normalized === "processing" || normalized === "đang xử lý") return "processing";
+        if (normalized === "shipped" || normalized === "đang giao") return "shipped";
+        if (normalized === "delivered" || normalized === "hoàn thành" || normalized === "đã giao") return "delivered";
+        if (normalized === "cancelled" || normalized === "canceled" || normalized === "đã hủy") return "cancelled";
+
+        return "unknown";
+    };
+
     const renderStatusBadge = (status) => {
-        const s = statusMap[status] || { label: status, bg: "bg-gray-50", text: "text-gray-600", dot: "bg-gray-500" };
+        const statusKey = normalizeStatusKey(status);
+        const s = statusMap[statusKey] || { label: "Không xác định", bg: "bg-gray-50", text: "text-gray-600", dot: "bg-gray-500" };
         return (
             <span className={`inline-flex items-center gap-1.5 py-1 px-3 rounded-full ${s.bg} ${s.text} font-medium text-xs`}>
                 <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`}></span>
@@ -48,7 +61,7 @@ const Orders = () => {
         );
     };
 
-    const filteredOrders = orders.filter(o => statusFilter === "All" || o.order_status === statusFilter);
+    const filteredOrders = orders.filter((o) => statusFilter === "All" || normalizeStatusKey(o.order_status) === statusFilter);
 
     return (
         <div id="tabOrders" className="profile-content bg-white p-8 md:p-10 rounded-[32px] shadow-sm border border-gray-100 relative">
@@ -65,7 +78,7 @@ const Orders = () => {
                                     : "text-textMuted hover:text-primary"
                             }`}
                         >
-                            {status === "All" ? "Tất cả" : statusMap[status].label}
+                            {status === "All" ? "Tất cả" : statusMap[status]?.label}
                         </button>
                     ))}
                 </div>

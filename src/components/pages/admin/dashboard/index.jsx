@@ -11,6 +11,18 @@ const Dashboard = () => {
     const statusChartRef = useRef(null);
     const chartInstances = useRef({});
 
+    const normalizeOrderStatus = (status) => {
+        const normalized = String(status || '').toLowerCase();
+
+        if (normalized === 'pending' || normalized === 'chờ xác nhận' || normalized === 'chờ thanh toán') return 'Chờ xác nhận';
+        if (normalized === 'processing' || normalized === 'đang xử lý') return 'Đang xử lý';
+        if (normalized === 'shipped' || normalized === 'đang giao') return 'Đang giao';
+        if (normalized === 'delivered' || normalized === 'hoàn thành' || normalized === 'đã giao') return 'Hoàn thành';
+        if (normalized === 'cancelled' || normalized === 'canceled' || normalized === 'đã hủy') return 'Đã hủy';
+
+        return 'Không xác định';
+    };
+
     useEffect(() => {
         const fetchAdminOrders = async () => {
             try {
@@ -39,7 +51,7 @@ const Dashboard = () => {
     }, []);
 
     const deliveredOrders = Array.isArray(orders)
-        ? orders.filter(o => o.order_status === 'Delivered')
+        ? orders.filter((o) => normalizeOrderStatus(o.order_status || o.status) === 'Hoàn thành')
         : [];
 
     useEffect(() => {
@@ -58,7 +70,7 @@ const Dashboard = () => {
         );
 
         const statusCounts = orders.reduce((acc, curr) => {
-            const status = curr.order_status || 'Unknown';
+            const status = normalizeOrderStatus(curr.order_status || curr.status);
             acc[status] = (acc[status] || 0) + 1;
             return acc;
         }, {});
@@ -155,7 +167,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                 <div className="bg-white p-6 rounded-2xl shadow-sm border lg:col-span-2">
-                    <h3 className="font-bold mb-4">Biến động doanh thu (Delivered)</h3>
+                    <h3 className="font-bold mb-4">Biến động doanh thu (Hoàn thành)</h3>
                     <div className="h-80">
                         <canvas ref={revenueChartRef}></canvas>
                     </div>
