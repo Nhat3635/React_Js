@@ -82,10 +82,10 @@ const Header = () => {
                                     Phòng Khách
                                 </h4>
                                 <ul className="space-y-3 text-sm text-textMuted">
-                                    <li><Link to="/shop?keyword=Sofa%20B%E1%BA%AFng" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Băng</Link></li>
-                                    <li><Link to="/shop?keyword=Sofa%20G%C3%B3c" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Góc</Link></li>
-                                    <li><Link to="/shop?keyword=B%C3%A0n%20Tr%C3%A0" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Trà</Link></li>
-                                    <li><Link to="/shop?keyword=K%E1%BB%87%20Tivi" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Kệ Tivi</Link></li>
+                                    <li><Link to="/shop?category=Sofa%20B%E1%BA%AFng" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Băng</Link></li>
+                                    <li><Link to="/shop?category=Sofa%20G%C3%B3c" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Góc</Link></li>
+                                    <li><Link to="/shop?category=B%C3%A0n%20Tr%C3%A0" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Trà</Link></li>
+                                    <li><Link to="/shop?category=K%E1%BB%87%20Tivi" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Kệ Tivi</Link></li>
                                 </ul>
                             </div>
                             {/* Column 2 */}
@@ -97,9 +97,9 @@ const Header = () => {
                                     Phòng Ngủ
                                 </h4>
                                 <ul className="space-y-3 text-sm text-textMuted">
-                                    <li><Link to="/shop?keyword=Gi%C6%B0%E1%BB%9Dng%20Ng%E1%BB%A7" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Giường Ngủ</Link></li>
-                                    <li><Link to="/shop?keyword=T%E1%BB%A7%20Qu%E1%BA%A7n%20%C3%81o" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Tủ Quần Áo</Link></li>
-                                    <li><Link to="/shop?keyword=Th%E1%BA%A3m%20Tr%E1%BA%A3i%20S%C3%A0n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Thảm Trải Sàn</Link></li>
+                                    <li><Link to="/shop?category=Gi%C6%B0%E1%BB%9Dng%20Ng%E1%BB%A7" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Giường Ngủ</Link></li>
+                                    <li><Link to="/shop?category=T%E1%BB%A7%20Qu%E1%BA%A7n%20%C3%81o" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Tủ Quần Áo</Link></li>
+                                    <li><Link to="/shop?category=Th%E1%BA%A3m%20Tr%E1%BA%A3i%20S%C3%A0n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Thảm Trải Sàn</Link></li>
                                 </ul>
                             </div>
                             {/* Column 3 */}
@@ -111,9 +111,9 @@ const Header = () => {
                                     Phòng Ăn
                                 </h4>
                                 <ul className="space-y-3 text-sm text-textMuted">
-                                    <li><Link to="/shop?keyword=B%C3%A0n%20%C4%82n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Ăn</Link></li>
-                                    <li><Link to="/shop?keyword=B%C3%A0n%20Tr%C3%A0" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Trà</Link></li>
-                                    <li><Link to="/shop?keyword=K%E1%BB%87%20Tivi" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Kệ Tivi</Link></li>
+                                    <li><Link to="/shop?category=B%C3%A0n%20%C4%82n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Ăn</Link></li>
+                                    <li><Link to="/shop?category=B%C3%A0n%20Tr%C3%A0" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Bàn Trà</Link></li>
+                                    <li><Link to="/shop?category=K%E1%BB%87%20Tivi" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Kệ Tivi</Link></li>
                                 </ul>
                             </div>
                             {/* Column 4 */}
@@ -125,9 +125,9 @@ const Header = () => {
                                     Văn Phòng
                                 </h4>
                                 <ul className="space-y-3 text-sm text-textMuted">
-                                    <li><Link to="/shop?keyword=Gh%E1%BA%BF%20L%C3%A0m%20Vi%E1%BB%87c" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Ghế Làm Việc</Link></li>
-                                    <li><Link to="/shop?keyword=Th%E1%BA%A3m%20Tr%E1%BA%A3i%20S%C3%A0n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Thảm Trải Sàn</Link></li>
-                                    <li><Link to="/shop?keyword=Sofa%20B%E1%BA%AFng" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Băng</Link></li>
+                                    <li><Link to="/shop?category=Gh%E1%BA%BF%20L%C3%A0m%20Vi%E1%BB%87c" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Ghế Làm Việc</Link></li>
+                                    <li><Link to="/shop?category=Th%E1%BA%A3m%20Tr%E1%BA%A3i%20S%C3%A0n" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Thảm Trải Sàn</Link></li>
+                                    <li><Link to="/shop?category=Sofa%20B%E1%BA%AFng" className="hover:text-orange-500 hover:translate-x-1 inline-block transition transform duration-300">Sofa Băng</Link></li>
                                 </ul>
                             </div>
                         </div>

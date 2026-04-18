@@ -4,370 +4,306 @@ import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
 import "./style.css";
 
-// Ảnh mặc định nếu không có ảnh sản phẩm
-const ANH_MAC_DINH = "https://placehold.co/600x600?text=PRODUCT";
+const DEFAULT_IMAGE = "https://placehold.co/600x600?text=PRODUCT";
+const DEFAULT_AVATAR = "https://placehold.co/100x100?text=U";
 
-// Hàm định dạng tiền tệ
-function FormPrice(value) {
-  return `${Number(value || 0).toLocaleString("vi-VN")} đ`;
-}
+// Định dạng giá tiền sang kiểu Việt Nam
+const formatPrice = (value) =>
+  `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 
-function FormRating({ rating }) {
-  const percent = (Math.min(5, Math.max(0, rating)) / 5) * 100;
+// Định dạng ngày đánh giá
+const formatDate = (value) => {
+  const date = value ? new Date(value) : new Date();
+  return isNaN(date)
+    ? ""
+    : new Intl.DateTimeFormat("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(date);
+};
 
+// Chuyển chuỗi tiền về số
+const parseMoney = (value) =>
+  Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
+
+// Tính sao trung bình từ danh sách đánh giá
+const avgRating = (items) =>
+  items.length
+    ? items.reduce((s, r) => s + Number(r?.rating || 0), 0) / items.length
+    : 0;
+
+// Hiển thị sao đánh giá
+function StarRating({ rating }) {
+  const stars = Array.from({ length: 5 }, (_, i) => (
+    <i key={i} className="bi bi-star-fill" />
+  ));
   return (
     <div className="star-rating">
-      <div className="stars-outer">
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-      </div>
-      <div className="stars-inner" style={{ width: `${percent}%` }}>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
-        <i className="bi bi-star-fill"></i>
+      <div className="stars-outer">{stars}</div>
+      <div
+        className="stars-inner"
+        style={{ width: `${(Math.min(5, Math.max(0, rating)) / 5) * 100}%` }}
+      >
+        {stars}
       </div>
     </div>
   );
 }
 
-function formatReviewDate(value) {
-  const date = value ? new Date(value) : new Date();
+// Chuẩn hóa dữ liệu biến thể
+function normalizeVariant(v) {
+  return {
+    id: v?.id,
+    name: v?.name || v?.attribute_summary || `Biến thể #${v?.id ?? ""}`,
+    sku: v?.sku || "",
+    price: parseMoney(v?.price),
+    image: v?.variant_image || "",
+  };
+}
 
-  if (Number.isNaN(date.getTime())) {
-    return "";
+// Chuẩn hóa dữ liệu review
+function normalizeReview(r) {
+  return {
+    id: r?.id || Math.random().toString(36),
+    name: r?.username || r?.user_name || r?.name || "Khách hàng",
+    avatar: r?.avatar || DEFAULT_AVATAR,
+    rating: Number(r?.rating || 5),
+    date: formatDate(r?.created_at || r?.date),
+    content: r?.comment || r?.content || "",
+    verified: Boolean(r?.verified || r?.purchased),
+  };
+}
+
+function isVisibleApprovedComment(item) {
+  const hasModerationFields =
+    Object.prototype.hasOwnProperty.call(item || {}, "id_visible") ||
+    Object.prototype.hasOwnProperty.call(item || {}, "is_approved");
+
+  if (!hasModerationFields) {
+    return true;
   }
 
-  return new Intl.DateTimeFormat("vi-VN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(date);
+  return Number(item?.id_visible) === 1 && Number(item?.is_approved) === 1;
 }
 
-function resolveReviewAuthorName(reviewItem) {
-  return (
-    reviewItem?.username ||
-    reviewItem?.user_name ||
-    reviewItem?.name ||
-    "Khách hàng"
-  );
-}
-
-function parseVariantData(variantItem) {
-  return {
-    id: variantItem?.id,
-    name:
-      variantItem?.name ||
-      variantItem?.attribute_summary ||
-      `Biến thể #${variantItem?.id || ""}`,
-    sku: variantItem?.sku || "",
-    price: Number(String(variantItem?.price || 0).replace(/[^\d]/g, "")) || 0,
-    stock_quantity: Number(variantItem?.stock_quantity || 0),
-    image: variantItem?.variant_image || "",
-  };
-}
-
-function parseMoney(value) {
-  return Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
-}
-
-function normalizeReviewData(reviewItem) {
-  return {
-    id: reviewItem?.id || Math.random().toString(36),
-    name: resolveReviewAuthorName(reviewItem),
-    avatar: reviewItem?.avatar || "https://placehold.co/100x100?text=U",
-    rating: Number(reviewItem?.rating || 5),
-    date: formatReviewDate(reviewItem?.created_at || reviewItem?.date),
-    content: reviewItem?.comment || reviewItem?.content || "",
-    verified: Boolean(reviewItem?.verified || reviewItem?.purchased),
-  };
-}
-
-function calculateAverageRating(reviewItems) {
-  if (!Array.isArray(reviewItems) || reviewItems.length === 0) {
-    return 0;
-  }
-
-  const totalRating = reviewItems.reduce(
-    (sum, item) => sum + Number(item?.rating || 0),
-    0,
-  );
-
-  return totalRating / reviewItems.length;
-}
-
-function normalizeRelatedProductData(productItem) {
-  return {
-    id: productItem?.id,
-    name: productItem?.name || "Sản phẩm",
-    price: parseMoney(productItem?.base_price),
-    image: productItem?.image || ANH_MAC_DINH,
-    category: productItem?.category_name || "",
-    rating: Number(productItem?.rating_avg || 0),
-    hasRating: Boolean(productItem?.rating_avg),
-  };
-}
-
-function buildImageGallery(product, variants) {
-  const detailImages = Array.isArray(product?.images)
-    ? product.images.filter(Boolean)
+// Chuẩn hóa dữ liệu chi tiết sản phẩm
+function normalizeProduct(p) {
+  const variants = Array.isArray(p?.variants)
+    ? p.variants.map(normalizeVariant)
     : [];
-  const variantImages = variants.map((item) => item.image).filter(Boolean);
-
-  const mergedGallery = [
-    ...detailImages,
-    ...variantImages,
-    product?.image || ANH_MAC_DINH,
+  const galleryRaw = [
+    ...(Array.isArray(p?.images) ? p.images : []),
+    ...variants.map((v) => v.image),
+    p?.image || DEFAULT_IMAGE,
   ].filter(Boolean);
-
-  return Array.from(new Set(mergedGallery));
-}
-
-function normalizeDetailData(product) {
-  const variants = Array.isArray(product?.variants)
-    ? product.variants.map((item) => parseVariantData(item))
+  const gallery = [...new Set(galleryRaw)];
+  const comments = Array.isArray(p?.comments)
+    ? p.comments
+        .filter((item) => isVisibleApprovedComment(item))
+        .map(normalizeReview)
     : [];
-
-  const gallery = buildImageGallery(product, variants);
   const firstVariant = variants[0] || null;
-  const firstVariantId = firstVariant ? String(firstVariant.id) : "";
-  const normalizedReviews = Array.isArray(product?.reviews)
-    ? product.reviews.map((item) => normalizeReviewData(item))
-    : [];
-  const averageRating = calculateAverageRating(normalizedReviews);
 
   return {
-    productInfo: {
-      name: product?.name || "Sản phẩm",
-      category: product?.category_name || "Nội thất",
-      price: firstVariant ? firstVariant.price : parseMoney(product?.base_price),
+    info: {
+      name: p?.name || "Sản phẩm",
+      category: p?.category_name || "Nội thất",
+      price: firstVariant ? firstVariant.price : parseMoney(p?.base_price),
       oldPrice: 0,
-      description: product?.short_description || "Chưa cập nhật",
-      rating: averageRating || product?.rating_avg || 0,
-      reviewCount: normalizedReviews.length,
+      description: p?.short_description || "Chưa cập nhật",
+      rating: Number(p?.rating_avg ?? avgRating(comments) ?? 0),
     },
     images: {
-      main: gallery[0] || ANH_MAC_DINH,
-      gallery: gallery.length > 0 ? gallery : [ANH_MAC_DINH],
+      main: gallery[0] || DEFAULT_IMAGE,
+      gallery: gallery.length ? gallery : [DEFAULT_IMAGE],
     },
-    tabDetails: {
-      descriptions: product?.detail_content
-        ? String(product.detail_content)
+    tabs: {
+      descriptions: p?.detail_content
+        ? String(p.detail_content)
             .split("\n")
-            .map((item) => item.trim())
+            .map((s) => s.trim())
             .filter(Boolean)
         : [],
-      specifications: Array.isArray(product?.specs)
-        ? product.specs.map((item) => ({
-            label: item?.spec_name || "Thông số",
-            value: item?.spec_value || "",
+      specifications: Array.isArray(p?.specs)
+        ? p.specs.map((s) => ({
+            label: s?.spec_name || "Thông số",
+            value: s?.spec_value || "",
           }))
         : [],
-      shippingPolicy: Array.isArray(product?.policies)
-        ? product.policies.map((item) => item?.content).filter(Boolean)
+      shippingPolicy: Array.isArray(p?.policies)
+        ? p.policies.map((s) => s?.content).filter(Boolean)
         : [],
     },
     variants,
-    reviews: normalizedReviews,
-    firstVariantId,
+    comments,
+    firstVariantId: firstVariant ? String(firstVariant.id) : "",
   };
 }
 
-function buildRelatedProducts(currentProduct, productList) {
-  if (!Array.isArray(productList)) {
-    return [];
-  }
-
-  return productList
-    .filter((item) => Number(item?.status) === 1)
-    .filter((item) => String(item?.id) !== String(currentProduct?.id))
+// Lấy sản phẩm cùng danh mục
+function buildRelated(current, list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((p) => Number(p?.status) === 1)
+    .filter((p) => String(p?.id) !== String(current?.id))
     .filter(
-      (item) =>
-        String(item?.category_name || "") ===
-        String(currentProduct?.category_name || ""),
+      (p) =>
+        String(p?.category_name || "") === String(current?.category_name || ""),
     )
     .slice(0, 4)
-    .map((item) => normalizeRelatedProductData(item));
+    .map((p) => ({
+      id: p?.id,
+      name: p?.name || "Sản phẩm",
+      price: parseMoney(p?.base_price),
+      image: p?.image || DEFAULT_IMAGE,
+      category: p?.category_name || "",
+      rating: Number(p?.rating_avg || 0),
+      hasRating: Boolean(p?.rating_avg),
+    }));
 }
 
-function resolveVariantImage(variantItem, fallbackImage) {
-  return variantItem?.image || fallbackImage || ANH_MAC_DINH;
-}
+const TABS = [
+  { key: "desc", label: "Mô tả sản phẩm" },
+  { key: "specs", label: "Thông số kỹ thuật" },
+  { key: "shipping", label: "Chính sách giao hàng" },
+];
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [productInfo, setProductInfo] = useState({
+  const [info, setInfo] = useState({
     name: "Ghế Sofa Cao Cấp Minimalist",
     category: "Phòng Khách",
     price: 899000,
     oldPrice: 0,
     description: "Chưa cập nhật",
     rating: 5,
-    reviewCount: 0,
   });
   const [images, setImages] = useState({
-    main: ANH_MAC_DINH,
-    gallery: [ANH_MAC_DINH],
+    main: DEFAULT_IMAGE,
+    gallery: [DEFAULT_IMAGE],
   });
-  const [selections, setSelections] = useState({
-    quantity: 1,
-    variantId: "",
-    activeTab: "desc",
-  });
-  const [tabDetails, setTabDetails] = useState({
+  const [tabs, setTabs] = useState({
     descriptions: [],
     specifications: [],
     shippingPolicy: [],
   });
-  const [reviews, setReviews] = useState({
+  const [variants, setVariants] = useState([]);
+  const [related, setRelated] = useState([]);
+  const [variantId, setVariantId] = useState("");
+  const [activeTab, setActiveTab] = useState("desc");
+  const [comments, setComments] = useState({
     items: [],
-    rating: 5,
-    content: "",
-    message: "",
-    isSubmitting: false,
     showAll: false,
   });
-  const [relatedProducts, setRelatedProducts] = useState([]);
-  const [variants, setVariants] = useState([]);
-  const [loading, setLoading] = useState({
-    isLoading: false,
-    error: "",
+  const [hasPurchased, setHasPurchased] = useState(false);
+  const [commentForm, setCommentForm] = useState({
+    content: "",
+    rating: 5,
+    message: "",
+    isSubmitting: false,
   });
+  const [loading, setLoading] = useState({ active: false, error: "" });
   const [isAddingToCart, setIsAddingToCart] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [quantity, setQuantity] = useState(1);
+  const [toast, setToast] = useState({
+    show: false,
+    message: "",
+    type: "success",
+  });
 
-  const showToast = (message, type = "success") => {
-      setToast({ show: true, message, type });
-  };
+  // Hiển thị thông báo ngắn
+  const showToast = (message, type = "success") =>
+    setToast({ show: true, message, type });
 
-  const closeToast = () => {
-      setToast((prev) => ({ ...prev, show: false }));
-  };
-
-  const productName = productInfo.name;
-  const categoryName = productInfo.category;
-  const price = productInfo.price;
-  const oldPrice = productInfo.oldPrice;
-  const description = productInfo.description;
-  const productRating = productInfo.rating;
-  const reviewCount = productInfo.reviewCount;
-
-  const mainImage = images.main;
-  const galleryImages = images.gallery;
-
-  const quantity = selections.quantity;
-  const selectedVariantId = selections.variantId;
-  const activeTab = selections.activeTab;
-
-  const descriptionLines = tabDetails.descriptions;
-  const specifications = tabDetails.specifications;
-  const shippingPolicy = tabDetails.shippingPolicy;
-
-  const reviewList = reviews.items;
-  const reviewRating = reviews.rating;
-  const reviewContent = reviews.content;
-  const reviewMessage = reviews.message;
-  const isSubmittingReview = reviews.isSubmitting;
-  const showAllReviews = reviews.showAll;
-
-  const relatedProductList = relatedProducts;
-  const variantList = variants;
-  const isLoading = loading.isLoading;
-  const errorMessage = loading.error;
-
-  const computedReviewCount = reviewList.length;
-  const computedProductRating = calculateAverageRating(reviewList);
-
-  const selectedVariant = variantList.find(
-    (item) => String(item.id) === String(selectedVariantId),
+  const selectedVariant = variants.find(
+    (v) => String(v.id) === String(variantId),
   );
-  const currentPrice = selectedVariant ? selectedVariant.price : price;
+  const currentPrice = selectedVariant ? selectedVariant.price : info.price;
+  const computedRating = avgRating(comments.items);
+  const displayedReviews = comments.showAll
+    ? comments.items
+    : comments.items.slice(0, 3);
 
-  // ===== patch state helpers =====
-  function patchProductInfo(partialInfo) {
-    setProductInfo((previous) => ({ ...previous, ...partialInfo }));
+  // Đổi biến thể và cập nhật ảnh chính
+  function handleVariantChange(e) {
+    const next = variants.find((v) => String(v.id) === String(e.target.value));
+    setVariantId(e.target.value);
+    setImages((prev) => ({
+      ...prev,
+      main: next?.image || images.gallery[0] || DEFAULT_IMAGE,
+    }));
   }
 
-  function patchImages(partialImages) {
-    setImages((previous) => ({ ...previous, ...partialImages }));
+  function handleCommentChange(event) {
+    setCommentForm((prev) => ({ ...prev, content: event.target.value }));
   }
 
-  function patchSelections(partialSelections) {
-    setSelections((previous) => ({ ...previous, ...partialSelections }));
+  function handleCommentRatingChange(rating) {
+    setCommentForm((prev) => ({ ...prev, rating }));
   }
 
-  function patchTabDetails(partialTabDetails) {
-    setTabDetails((previous) => ({ ...previous, ...partialTabDetails }));
-  }
-
-  function patchReviews(partialReviews) {
-    setReviews((previous) =>
-      typeof partialReviews === "function"
-        ? partialReviews(previous)
-        : { ...previous, ...partialReviews },
-    );
-  }
-
-  function patchLoading(partialLoading) {
-    setLoading((previous) => ({ ...previous, ...partialLoading }));
-  }
-
-  // ===== event handlers =====
-  function handleThumbnailClick(image) {
-    patchImages({ main: image });
-  }
-
-  function handleVariantChange(event) {
-    const nextVariantId = event.target.value;
-    const nextVariant = variantList.find(
-      (item) => String(item.id) === String(nextVariantId),
-    );
-
-    patchSelections({ variantId: nextVariantId, quantity: 1 });
-    patchImages({ main: resolveVariantImage(nextVariant, galleryImages[0]) });
-  }
-
-  function handleDecreaseQuantity() {
-    patchSelections({ quantity: Math.max(1, quantity - 1) });
-  }
-
-  function handleIncreaseQuantity() {
-    patchSelections({ quantity: quantity + 1 });
-  }
-
-  function handleTabChange(tabKey) {
-    patchSelections({ activeTab: tabKey });
-  }
-
-  function handleReviewRatingChange(star) {
-    patchReviews({ rating: star });
-  }
-
-  function handleReviewContentChange(event) {
-    patchReviews({ content: event.target.value });
-  }
-
-  function handleShowAllReviews() {
-    patchReviews({ showAll: true });
-  }
-
-  function handleCollapseReviews() {
-    patchReviews({ showAll: false });
-  }
-
-  async function handleAddToCart() {
-    if (!id || !selectedVariantId) {
-      showToast("Vui lòng chọn đầy đủ thuộc tính sản phẩm", "error");
+  async function handleSubmitComment() {
+    if (!id) {
+      setCommentForm((prev) => ({
+        ...prev,
+        message: "Không tìm thấy sản phẩm.",
+      }));
       return;
     }
 
+    if (!commentForm.content.trim()) {
+      setCommentForm((prev) => ({
+        ...prev,
+        message: "Vui lòng nhập nội dung bình luận.",
+      }));
+      return;
+    }
+
+    if (Number(commentForm.rating) < 1 || Number(commentForm.rating) > 5) {
+      setCommentForm((prev) => ({
+        ...prev,
+        message: "Vui lòng chọn số sao từ 1 đến 5.",
+      }));
+      return;
+    }
+
+    setCommentForm((prev) => ({ ...prev, isSubmitting: true, message: "" }));
+    try {
+      await requestAPI({
+        method: "POST",
+        url: "/products/comment",
+        data: {
+          product_id: parseInt(id),
+          parent_id: null,
+          content: commentForm.content.trim(),
+          rating: Number(commentForm.rating),
+        },
+      });
+
+      setCommentForm({
+        content: "",
+        rating: 4,
+        message: "Bình luận đã được gửi.",
+        isSubmitting: false,
+      });
+    } catch (err) {
+      setCommentForm((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        message: err?.message || "Gửi bình luận thất bại. Vui lòng thử lại.",
+      }));
+    }
+  }
+
+  // Thêm vào giỏ hàng
+  async function handleAddToCart() {
+    if (!id || !variantId) {
+      showToast("Vui lòng chọn đầy đủ thuộc tính sản phẩm", "error");
+      return;
+    }
     setIsAddingToCart(true);
     try {
       await requestAPI({
@@ -375,229 +311,167 @@ const ProductDetail = () => {
         url: "/carts/items/add",
         data: {
           product_id: parseInt(id),
-          variant_id: parseInt(selectedVariantId),
-          quantity: parseInt(quantity),
+          variant_id: parseInt(variantId),
+          quantity: quantity,
           unit_price: parseFloat(currentPrice),
-          variant_name: selectedVariant ? selectedVariant.name : "",
-          variant_image: resolveVariantImage(selectedVariant, galleryImages[0]),
-          product_name: productName
-        }
+          variant_name: selectedVariant?.name || "",
+          variant_image:
+            selectedVariant?.image || images.gallery[0] || DEFAULT_IMAGE,
+          product_name: info.name,
+        },
       });
-      // Fire generic event to update header badge
       window.dispatchEvent(new Event("cart_update"));
-      showToast("Thêm vào giỏ hàng thành công", "success");
-    } catch (error) {
-      console.error("Lỗi thêm vào giỏ hàng:", error);
-      const msg = error.response?.data?.message || "Lỗi khi thêm vào giỏ hàng";
-      showToast(msg, "error");
+      showToast("Thêm vào giỏ hàng thành công");
+    } catch (err) {
+      showToast(
+        err.response?.data?.message || "Lỗi khi thêm vào giỏ hàng",
+        "error",
+      );
     } finally {
       setIsAddingToCart(false);
     }
   }
 
-  // ===== data loader =====
-  async function loadProductData() {
-    patchLoading({ isLoading: true, error: "" });
+  // Tải dữ liệu sản phẩm + dữ liệu liên quan
+  async function loadProduct() {
+    setLoading({ active: true, error: "" });
     try {
-      const [detailResponse, listResponse] = await Promise.all([
+      const [detailRes, listRes] = await Promise.all([
         requestAPI({ method: "GET", url: `/products/${id}` }),
         requestAPI({ method: "GET", url: "/products/list" }),
       ]);
 
-      const detailStatus = detailResponse?.status || detailResponse?.data?.status;
-      if (Number(detailStatus) === 404) {
-        navigate("/404", {
+      const status = detailRes?.status || detailRes?.data?.status;
+      if (Number(status) === 404)
+        return navigate("/404", {
           replace: true,
           state: { message: "Sản phẩm không tồn tại." },
         });
-        return;
-      }
 
-      const product = detailResponse?.data?.data || {};
-      if (Number(product?.status) !== 1) {
-        navigate("/404", {
+      const product = detailRes?.data?.data || {};
+      if (Number(product?.status) !== 1)
+        return navigate("/404", {
           replace: true,
           state: { message: "Sản phẩm đã ngừng hiển thị." },
         });
-        return;
-      }
 
-      const productList = Array.isArray(listResponse?.data?.data)
-        ? listResponse.data.data
-        : [];
-
-      const normalizedDetail = normalizeDetailData(product);
-      const relatedItems = buildRelatedProducts(product, productList);
-      const initialVariant = normalizedDetail.variants.find(
-        (item) => String(item.id) === String(normalizedDetail.firstVariantId),
-      );
-      const initialMainImage = resolveVariantImage(
-        initialVariant,
-        normalizedDetail.images.main,
+      const normalized = normalizeProduct(product);
+      const initVariant = normalized.variants.find(
+        (v) => String(v.id) === normalized.firstVariantId,
       );
 
-      setImages({ ...normalizedDetail.images, main: initialMainImage });
-      setProductInfo(normalizedDetail.productInfo);
-      setTabDetails(normalizedDetail.tabDetails);
-      setVariants(normalizedDetail.variants);
-      patchSelections({
-        variantId: normalizedDetail.firstVariantId,
-        quantity: 1,
+      setInfo(normalized.info);
+      setImages({
+        ...normalized.images,
+        main: initVariant?.image || normalized.images.main,
       });
-      patchReviews({
-        items: normalizedDetail.reviews,
-        message: "",
-        isSubmitting: false,
+      setTabs(normalized.tabs);
+      setVariants(normalized.variants);
+      setVariantId(normalized.firstVariantId);
+      setRelated(
+        buildRelated(
+          product,
+          Array.isArray(listRes?.data?.data) ? listRes.data.data : [],
+        ),
+      );
+      setComments({
+        items: normalized.comments,
         showAll: false,
       });
-      setRelatedProducts(relatedItems);
-    } catch (error) {
-      if (Number(error?.response?.status) === 404) {
-        navigate("/404", {
+
+      try {
+        const purchasedResponse = await requestAPI({
+          method: "POST",
+          url: "/products/check-purchased",
+          data: { product_id: Number(id) },
+        });
+        setHasPurchased(Boolean(purchasedResponse?.data?.data?.hasPurchased));
+      } catch (purchaseError) {
+        setHasPurchased(false);
+      }
+    } catch (err) {
+      if (Number(err?.response?.status) === 404)
+        return navigate("/404", {
           replace: true,
           state: { message: "Sản phẩm không tồn tại." },
         });
-        return;
-      }
-      patchLoading({ error: error?.message || "Không tải được sản phẩm" });
+      setLoading((prev) => ({
+        ...prev,
+        error: err?.message || "Không tải được sản phẩm",
+      }));
     } finally {
-      patchLoading({ isLoading: false });
+      setLoading((prev) => ({ ...prev, active: false }));
     }
   }
 
+  // Tải dữ liệu khi mở trang
   useEffect(() => {
-    if (!id) {
-      navigate("/404", {
+    if (!id)
+      return navigate("/404", {
         replace: true,
         state: { message: "Không tìm thấy mã sản phẩm." },
       });
-      return;
-    }
-
-    loadProductData();
-  }, [id, navigate]);
-
-  async function submitReview() {
-    if (!id) {
-      patchReviews({ message: "Không tìm thấy sản phẩm." });
-      return;
-    }
-    if (reviewRating < 1 || reviewRating > 5) {
-      patchReviews({ message: "Vui lòng chọn số sao từ 1 đến 5." });
-      return;
-    }
-    if (!reviewContent.trim()) {
-      patchReviews({ message: "Vui lòng nhập nội dung đánh giá." });
-      return;
-    }
-
-    patchReviews({ isSubmitting: true, message: "" });
-    try {
-      const authorName = "Bạn";
-
-      await requestAPI({
-        method: "POST",
-        url: `/products/review`,
-        data: {
-          product_id: id,
-          rating: reviewRating,
-          comment: reviewContent.trim(),
-        },
-      });
-      await requestAPI({
-        method: "POST",
-        url: `/products/comment`,
-        data: {
-          product_id: id,
-          author_name: authorName,
-          content: reviewContent.trim(),
-        },
-      });
-
-      const newReview = {
-        id: `local-${Date.now()}`,
-        name: authorName,
-        avatar: "https://placehold.co/100x100?text=U",
-        rating: reviewRating,
-        date: formatReviewDate(new Date()),
-        content: reviewContent.trim(),
-        verified: false,
-      };
-
-      patchReviews((previous) => ({
-        ...previous,
-        items: [newReview, ...previous.items],
-        rating: 5,
-        content: "",
-        message: "Đánh giá của bạn đã được gửi.",
-      }));
-      patchProductInfo({ reviewCount: reviewCount + 1 });
-    } catch (error) {
-      patchReviews({
-        message: error?.message || "Gửi đánh giá thất bại. Vui lòng thử lại.",
-      });
-    } finally {
-      patchReviews({ isSubmitting: false });
-    }
-  }
-
-  const displayedReviews = showAllReviews
-    ? reviewList
-    : reviewList.slice(0, 3);
-
-  const shouldShowViewAllButton = !showAllReviews && reviewList.length > 3;
-  const shouldShowCollapseButton = showAllReviews && reviewList.length > 3;
+    loadProduct();
+  }, [id]);
 
   return (
     <div>
-      <Toast show={toast.show} message={toast.message} type={toast.type} onClose={closeToast} />
+      <Toast
+        show={toast.show}
+        message={toast.message}
+        type={toast.type}
+        onClose={() => setToast((p) => ({ ...p, show: false }))}
+      />
       <main className="mt-20 max-w-7xl mx-auto px-6 py-10 md:px-12 w-full flex-grow">
-        <nav className="flex text-sm text-textMuted mb-8 font-medium">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap items-center gap-2 text-sm text-textMuted mb-8 font-medium">
           <Link to="/" className="hover:text-orange-500 transition">
             Trang chủ
           </Link>
-          <span className="mx-2">/</span>
+          <span>/</span>
           <Link to="/shop" className="hover:text-orange-500 transition">
             Nội thất
           </Link>
-          <span className="mx-2">/</span>
+          <span>/</span>
           <Link to="/shop" className="hover:text-orange-500 transition">
-            {categoryName}
+            {info.category}
           </Link>
-          <span className="mx-2">/</span>
-          <span className="text-primary">{productName}</span>
+          <span>/</span>
+          <span className="text-primary">{info.name}</span>
         </nav>
 
-        {isLoading && (
+        {loading.active && (
           <div className="mb-6 rounded-xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-600">
             Đang tải dữ liệu sản phẩm...
           </div>
         )}
-        {errorMessage && (
+        {loading.error && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-            {errorMessage}
+            {loading.error}
           </div>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 mb-20">
+        {/* Product main section */}
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-12 mb-16">
+          {/* Gallery */}
           <div className="w-full lg:w-1/2 flex flex-col gap-4">
-            <div className="w-full h-[400px] md:h-[600px] bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100">
+            <div className="w-full h-[360px] md:h-[520px] bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
               <img
-                src={mainImage}
-                alt={productName}
+                src={images.main}
+                alt={info.name}
                 className="w-full h-full object-cover transition-transform duration-700 hover:scale-105 cursor-zoom-in"
               />
             </div>
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {galleryImages.map((image, index) => (
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {images.gallery.map((img, i) => (
                 <button
-                  key={index}
-                  onClick={handleThumbnailClick.bind(null, image)}
-                  className={`w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden border-2 shrink-0 transition duration-300 ${mainImage === image ? "border-orange-500 opacity-100" : "border-transparent opacity-60 hover:opacity-100"}`}
+                  key={i}
+                  onClick={() => setImages((prev) => ({ ...prev, main: img }))}
+                  className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 shrink-0 transition duration-300 ${images.main === img ? "border-orange-500 opacity-100" : "border-transparent opacity-60 hover:opacity-100"}`}
                 >
                   <img
-                    src={image}
-                    alt={`Ảnh ${index + 1}`}
+                    src={img}
+                    alt={`Ảnh ${i + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </button>
@@ -605,126 +479,57 @@ const ProductDetail = () => {
             </div>
           </div>
 
+          {/* Info */}
           <div className="w-full lg:w-1/2 flex flex-col justify-center">
             <span className="inline-block px-3 py-1 bg-orange-50 text-orange-600 text-xs font-bold uppercase tracking-wider rounded-md w-max mb-4">
-              Sản phẩm mới
+              Chi tiết sản phẩm
             </span>
-            <h1 className="text-3xl md:text-5xl font-bold text-primary leading-tight mb-4 tracking-tight">
-              {productName}
+            <h1 className="text-3xl md:text-4xl font-bold text-primary leading-tight mb-4 tracking-tight">
+              {info.name}
             </h1>
 
-            {computedReviewCount > 0 && (
+            {comments.items.length > 0 && (
               <div className="flex items-center gap-4 mb-6">
-                <FormRating rating={computedProductRating} />
+                <StarRating rating={computedRating} />
                 <span className="text-sm text-textMuted font-medium underline cursor-pointer">
-                  ({computedReviewCount} đánh giá)
+                  ({comments.items.length} đánh giá)
                 </span>
               </div>
             )}
 
             <div className="text-3xl md:text-4xl font-bold text-orange-500 mb-8 flex items-end tracking-tight">
-              {FormPrice(currentPrice)}
-              {oldPrice > 0 && (
+              {formatPrice(currentPrice)}
+              {info.oldPrice > 0 && (
                 <span className="text-lg text-textMuted font-medium line-through ml-3 mb-1">
-                  {FormPrice(oldPrice)}
+                  {formatPrice(info.oldPrice)}
                 </span>
               )}
             </div>
 
             <p className="text-textMuted leading-relaxed mb-8 max-w-lg text-[15px]">
-              {description}
+              {info.description}
             </p>
 
-            {variantList.length > 0 && (
-              <div className="grid grid-cols-1 gap-5 mb-8">
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-textMuted">
-                    Chọn biến thể
-                  </label>
-                  <div className="relative group">
-                    <select
-                      value={selectedVariantId}
-                      onChange={handleVariantChange}
-                      className="w-full appearance-none pl-5 pr-12 py-4 rounded-2xl border border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-sm text-sm font-semibold text-primary cursor-pointer transition duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 group-hover:border-gray-300"
-                    >
-                      {variantList.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-500 transition-colors">
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 9l-7 7-7-7"
-                        ></path>
-                      </svg>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex flex-col sm:flex-row gap-4 mb-10 items-stretch sm:items-center">
-              <div className="flex items-center justify-between border-2 border-gray-100 rounded-xl px-4 py-3 w-32 bg-white shrink-0">
-                <button
-                  onClick={handleDecreaseQuantity}
-                  className="text-gray-400 hover:text-orange-500 transition"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+            {variants.length > 0 && (
+              <div className="mb-8">
+                <label className="text-xs font-bold uppercase tracking-wider text-textMuted block mb-2">
+                  Chọn biến thể
+                </label>
+                <div className="relative group">
+                  <select
+                    value={variantId}
+                    onChange={handleVariantChange}
+                    className="w-full appearance-none pl-5 pr-12 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm text-sm font-semibold text-primary cursor-pointer transition duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-400 group-hover:border-gray-300"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="3"
-                      d="M20 12H4"
-                    ></path>
-                  </svg>
-                </button>
-                <span className="w-10 text-center text-primary font-bold">
-                  {quantity}
-                </span>
-                <button
-                  onClick={handleIncreaseQuantity}
-                  className="text-gray-400 hover:text-orange-500 transition"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="3"
-                      d="M12 4v16m8-8H4"
-                    ></path>
-                  </svg>
-                </button>
-              </div>
-
-              <button onClick={handleAddToCart} disabled={isAddingToCart} className="flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-75 disabled:cursor-not-allowed">
-                {isAddingToCart ? (
-                    <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                ) : (
+                    {variants.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-500 transition-colors">
                     <svg
-                      className="w-5 h-5"
+                      className="w-4 h-4"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -733,9 +538,76 @@ const ProductDetail = () => {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth="2"
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                      ></path>
+                        d="M19 9l-7 7-7-7"
+                      />
                     </svg>
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4 mb-10 items-stretch sm:items-center">
+              <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-white">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="px-4 py-3 text-primary hover:bg-gray-100 transition font-bold text-lg"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 text-center py-3 border-x border-gray-300 focus:outline-none font-bold"
+                />
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="px-4 py-3 text-primary hover:bg-gray-100 transition font-bold text-lg"
+                >
+                  +
+                </button>
+              </div>
+              <button
+                onClick={handleAddToCart}
+                disabled={isAddingToCart}
+                className="flex-grow py-4 rounded-xl font-bold text-base transition duration-300 flex items-center justify-center gap-2 bg-primary text-white hover:bg-orange-500 disabled:opacity-75 disabled:cursor-not-allowed"
+              >
+                {isAddingToCart ? (
+                  <svg
+                    className="animate-spin w-5 h-5"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
+                  </svg>
                 )}
                 {isAddingToCart ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
               </button>
@@ -752,12 +624,12 @@ const ProductDetail = () => {
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  ></path>
+                  />
                 </svg>
               </button>
             </div>
 
-            <div className="flex items-center gap-6 text-sm text-textMuted font-medium border-t border-gray-100 pt-6">
+            <div className="flex flex-wrap items-center gap-6 text-sm text-textMuted font-medium border-t border-gray-100 pt-6">
               <span className="flex items-center gap-2">
                 <svg
                   className="w-5 h-5 text-gray-400"
@@ -770,7 +642,7 @@ const ProductDetail = () => {
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M5 13l4 4L19 7"
-                  ></path>
+                  />
                 </svg>
                 Uy tín
               </span>
@@ -786,7 +658,7 @@ const ProductDetail = () => {
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  ></path>
+                  />
                 </svg>
                 Giao hàng 2-4 ngày
               </span>
@@ -794,16 +666,13 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        <div className="w-full bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 md:p-12 mb-20">
+        {/* Tabs */}
+        <div className="w-full bg-white rounded-3xl shadow-sm border border-gray-100 p-8 md:p-10 mb-16">
           <nav className="flex overflow-x-auto gap-8 border-b border-gray-100 mb-8 pb-4">
-            {[
-              { key: "desc", label: "Mô tả sản phẩm" },
-              { key: "specs", label: "Thông số kỹ thuật" },
-              { key: "shipping", label: "Chính sách giao hàng" },
-            ].map((tab) => (
+            {TABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={handleTabChange.bind(null, tab.key)}
+                onClick={() => setActiveTab(tab.key)}
                 className={`font-bold pb-4 px-2 whitespace-nowrap transition cursor-pointer border-b-2 ${activeTab === tab.key ? "text-orange-500 border-orange-500" : "text-textMuted hover:text-primary border-transparent"}`}
               >
                 {tab.label}
@@ -813,8 +682,8 @@ const ProductDetail = () => {
 
           {activeTab === "desc" && (
             <div className="text-textMuted leading-relaxed space-y-4">
-              {descriptionLines.length > 0 ? (
-                descriptionLines.map((line, index) => <p key={index}>{line}</p>)
+              {tabs.descriptions.length > 0 ? (
+                tabs.descriptions.map((line, i) => <p key={i}>{line}</p>)
               ) : (
                 <p>Chưa cập nhật</p>
               )}
@@ -823,14 +692,14 @@ const ProductDetail = () => {
 
           {activeTab === "specs" && (
             <div className="text-textMuted leading-relaxed">
-              {specifications.length > 0 ? (
+              {tabs.specifications.length > 0 ? (
                 <table className="w-full text-sm text-left border-collapse">
                   <tbody>
-                    {specifications.map((row, index) => (
+                    {tabs.specifications.map((row, i) => (
                       <tr
-                        key={index}
+                        key={i}
                         className={
-                          index < specifications.length - 1
+                          i < tabs.specifications.length - 1
                             ? "border-b border-gray-100"
                             : ""
                         }
@@ -851,14 +720,14 @@ const ProductDetail = () => {
 
           {activeTab === "shipping" && (
             <div className="text-textMuted leading-relaxed space-y-4">
-              {shippingPolicy.length > 0 ? (
+              {tabs.shippingPolicy.length > 0 ? (
                 <>
                   <h4 className="text-primary font-bold text-lg mb-2">
                     Vận chuyển và đổi trả
                   </h4>
                   <ul className="list-disc pl-5 space-y-2">
-                    {shippingPolicy.map((line, index) => (
-                      <li key={index}>{line}</li>
+                    {tabs.shippingPolicy.map((line, i) => (
+                      <li key={i}>{line}</li>
                     ))}
                   </ul>
                 </>
@@ -869,59 +738,70 @@ const ProductDetail = () => {
           )}
         </div>
 
-        <h2 className="text-3xl font-bold text-primary mb-10 text-center tracking-tight">
+        {/* Comments */}
+        <h2 className="text-2xl md:text-3xl font-bold text-primary mb-8 tracking-tight">
           Đánh giá
         </h2>
-        <div className="bg-white rounded-[32px] shadow-sm border border-gray-100 p-8 md:p-12 mb-20">
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 md:p-10 mb-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-1">
               <div className="flex items-end gap-4 mb-3">
                 <div className="text-5xl font-bold text-primary leading-none">
-                  {computedProductRating.toFixed(1)}
+                  {computedRating.toFixed(1)}
                 </div>
-                <FormRating rating={computedProductRating} />
+                <StarRating rating={computedRating} />
               </div>
-              <p className="text-sm text-textMuted">{computedReviewCount} đánh giá</p>
+              <p className="text-sm text-textMuted">
+                {comments.items.length} đánh giá
+              </p>
 
-              <div className="mt-8 rounded-2xl border border-gray-100 bg-secondary/40 p-5">
-                <h3 className="text-lg font-bold text-primary mb-3 tracking-tight">
-                  Viết đánh giá
-                </h3>
-                <div className="flex items-center gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={handleReviewRatingChange.bind(null, star)}
-                      className={`text-xl transition ${star <= reviewRating ? "text-yellow-400" : "text-gray-300"}`}
-                    >
-                      <i className="bi bi-star-fill"></i>
-                    </button>
-                  ))}
+              {hasPurchased && (
+                <div className="mt-8 rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                  <h3 className="text-lg font-bold text-primary mb-3 tracking-tight">
+                    Viết bình luận
+                  </h3>
+                  <div className="flex items-center gap-1 mb-4">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => handleCommentRatingChange(star)}
+                        className={`text-xl transition ${star <= commentForm.rating ? "text-yellow-400" : "text-gray-300"}`}
+                      >
+                        <i className="bi bi-star-fill" />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    placeholder="Chia sẻ cảm nhận của bạn..."
+                    rows="3"
+                    value={commentForm.content}
+                    onChange={handleCommentChange}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
+                  />
+                  {commentForm.message && (
+                    <p className="mt-3 text-sm text-textMuted">
+                      {commentForm.message}
+                    </p>
+                  )}
+                  <button
+                    onClick={handleSubmitComment}
+                    disabled={commentForm.isSubmitting}
+                    className="mt-4 bg-primary text-white py-3 rounded-xl font-bold text-sm hover:bg-black transition duration-300 w-full"
+                  >
+                    {commentForm.isSubmitting ? "Đang gửi..." : "Gửi bình luận"}
+                  </button>
                 </div>
+              )}
 
-                <textarea
-                  placeholder="Chia sẻ cảm nhận của bạn..."
-                  rows="3"
-                  value={reviewContent}
-                  onChange={handleReviewContentChange}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
-                />
-
-                {reviewMessage && (
-                  <p className="mt-3 text-sm text-textMuted">{reviewMessage}</p>
-                )}
-
-                <button
-                  onClick={submitReview}
-                  disabled={isSubmittingReview}
-                  className="mt-4 bg-primary text-white py-3 rounded-xl font-bold text-sm hover:bg-black transition duration-300 w-full"
-                >
-                  {isSubmittingReview ? "Đang gửi..." : "Gửi đánh giá"}
-                </button>
-              </div>
+              {!hasPurchased && (
+                <p className="mt-8 text-sm text-textMuted">
+                  Chỉ khách đã mua sản phẩm mới có thể bình luận.
+                </p>
+              )}
             </div>
 
-            {reviewList.length > 0 && (
+            {comments.items.length > 0 && (
               <div className="lg:col-span-2 flex flex-col gap-4">
                 {displayedReviews.map((review) => (
                   <div
@@ -949,7 +829,7 @@ const ProductDetail = () => {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 mb-3">
-                          <FormRating rating={review.rating} />
+                          <StarRating rating={review.rating} />
                         </div>
                         <p className="text-sm text-textMuted leading-relaxed">
                           {review.content}
@@ -959,18 +839,21 @@ const ProductDetail = () => {
                   </div>
                 ))}
 
-                {shouldShowViewAllButton && (
+                {!comments.showAll && comments.items.length > 3 && (
                   <button
-                    onClick={handleShowAllReviews}
+                    onClick={() =>
+                      setComments((prev) => ({ ...prev, showAll: true }))
+                    }
                     className="self-center mt-2 px-5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-primary hover:text-orange-500 hover:border-orange-300 transition"
                   >
-                    Xem tất cả {reviewList.length} bình luận
+                    Xem tất cả {comments.items.length} bình luận
                   </button>
                 )}
-
-                {shouldShowCollapseButton && (
+                {comments.showAll && comments.items.length > 3 && (
                   <button
-                    onClick={handleCollapseReviews}
+                    onClick={() =>
+                      setComments((prev) => ({ ...prev, showAll: false }))
+                    }
                     className="self-center mt-2 px-5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-primary hover:text-orange-500 hover:border-orange-300 transition"
                   >
                     Thu gọn
@@ -981,19 +864,20 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {relatedProductList.length > 0 && (
+        {/* Related Products */}
+        {related.length > 0 && (
           <>
             <h2 className="text-2xl font-bold text-primary mb-8 tracking-tight">
               Sản phẩm cùng danh mục
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
-              {relatedProductList.map((product) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-20">
+              {related.map((product) => (
                 <Link
                   key={product.id}
                   to={`/product-detail/${product.id}`}
-                  className="bg-white rounded-[24px] p-5 shadow-sm hover:shadow-xl transition flex flex-col group border border-gray-100"
+                  className="bg-white rounded-3xl p-5 shadow-sm hover:shadow-lg transition flex flex-col group border border-gray-100"
                 >
-                  <div className="h-56 bg-secondary rounded-2xl mb-4 overflow-hidden">
+                  <div className="h-52 bg-gray-50 rounded-2xl mb-4 overflow-hidden">
                     <img
                       src={product.image}
                       alt={product.name}
@@ -1008,12 +892,12 @@ const ProductDetail = () => {
                   </div>
                   {product.hasRating && (
                     <div className="mb-4">
-                      <FormRating rating={product.rating} />
+                      <StarRating rating={product.rating} />
                     </div>
                   )}
                   <div className="flex items-center justify-between mt-auto">
-                    <span className="text-xl font-bold text-primary">
-                      {FormPrice(product.price)}
+                    <span className="text-lg font-bold text-primary">
+                      {formatPrice(product.price)}
                     </span>
                     <button className="w-10 h-10 rounded-full bg-primary text-white flex justify-center items-center hover:bg-orange-500 transition -rotate-45 group-hover:rotate-0 duration-300">
                       <svg
@@ -1022,7 +906,7 @@ const ProductDetail = () => {
                         stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path d="M5 12h14M12 5l7 7-7 7"></path>
+                        <path d="M5 12h14M12 5l7 7-7 7" />
                       </svg>
                     </button>
                   </div>
