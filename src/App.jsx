@@ -50,6 +50,9 @@ import AdminSettings from './components/pages/admin/settings';
 import BlogManagement from './components/pages/admin/blog';
 import CreateBlog from './components/pages/admin/blog/create';
 import EditBlog from './components/pages/admin/blog/edit';
+import BrandManagement from './components/pages/admin/brand';
+import CreateBrand from './components/pages/admin/brand/create';
+import EditBrand from './components/pages/admin/brand/edit';
 import NotFoundPage from './components/pages/not-found';
 import NotFoundAdmin from './components/pages/not-found-admin';
 
@@ -103,6 +106,9 @@ function App() {
           <Route path="blogs" element={<BlogManagement />} />
           <Route path="blogs/create" element={<CreateBlog />} />
           <Route path="blogs/edit/:id" element={<EditBlog />} />
+          <Route path="brands" element={<BrandManagement />} />
+          <Route path="brands/create" element={<CreateBrand />} />
+          <Route path="brands/edit/:id" element={<EditBrand />} />
           {/* 404 cho Admin nếu nhập sai route trong layout admin */}
           <Route path="*" element={<NotFoundAdmin />} />
         </Route>
