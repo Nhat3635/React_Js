@@ -3,6 +3,52 @@ import { useEffect, useState, useCallback } from "react";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
 
+// Component con để xử lý nhập số lượng trực tiếp
+const QuantityInput = ({ itemId, quantity, onUpdate, disabled }) => {
+    const [inputValue, setInputValue] = useState(quantity);
+
+    // Cập nhật giá trị local khi số lượng từ prop thay đổi (do nhấn nút +/-)
+    useEffect(() => {
+        setInputValue(quantity);
+    }, [quantity]);
+
+    const handleChange = (e) => {
+        setInputValue(e.target.value);
+    };
+
+    const handleBlur = () => {
+        const num = parseInt(inputValue);
+        // Nếu số hợp lệ, >= 1 và khác với giá trị hiện tại thì mới cập nhật
+        if (!isNaN(num) && num >= 1) {
+            if (num !== quantity) {
+                onUpdate(itemId, num);
+            }
+        } else {
+            // Nếu không hợp lệ, reset về giá trị cũ
+            setInputValue(quantity);
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            e.target.blur(); // Kích hoạt sự kiện onBlur để cập nhật
+        }
+    };
+
+    return (
+        <input
+            type="number"
+            min="1"
+            value={inputValue}
+            onChange={handleChange}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            className="text-sm font-bold w-12 text-center text-primary bg-transparent border-none focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none disabled:opacity-50"
+        />
+    );
+};
+
 const Cart = () => {
     const [cart, setCart] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -214,7 +260,12 @@ const Cart = () => {
                                                     >
                                                         −
                                                     </button>
-                                                    <span className="text-sm font-bold w-4 text-center text-primary">{item.quantity}</span>
+                                                    <QuantityInput 
+                                                        itemId={item.id} 
+                                                        quantity={item.quantity} 
+                                                        onUpdate={handleUpdateQuantity}
+                                                        disabled={updating[item.id]}
+                                                    />
                                                     <button 
                                                         onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                                                         disabled={updating[item.id]}
