@@ -28,6 +28,17 @@ const EditProduct = () => {
   const [allProducts, setAllProducts] = useState([]);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, itemType: null, itemId: null, isDeleting: false });
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState("general"); // general, comments
+  const [productComments, setProductComments] = useState([]);
+  const [isCommentsLoading, setIsCommentsLoading] = useState(false);
+  const [feedbackType, setFeedbackType] = useState("comment"); // comment, review
+  const [feedbackPagination, setFeedbackPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 0 });
+  const [expandedRows, setExpandedRows] = useState(new Set());
+  const [commentReplies, setCommentReplies] = useState({});
+  const [replyTo, setReplyTo] = useState(null); // ID of comment being replied to
+  const [replyContent, setReplyContent] = useState("");
+
   const {
     register,
     handleSubmit,
@@ -166,7 +177,119 @@ const EditProduct = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [id, reset, showToast]);
+  }, [id, reset, showToast, navigate]);
+
+  const fetchFeedback = useCallback(async () => {
+    try {
+      setIsCommentsLoading(true);
+      const queryParams = new URLSearchParams({
+        productId: id,
+        page: feedbackPagination.page,
+        limit: feedbackPagination.limit,
+      });
+
+      const endpoint = feedbackType === "comment" ? "/comments/list" : "/reviews/list";
+      const res = await requestAPI({ method: "GET", url: `${endpoint}?${queryParams.toString()}` });
+      
+      if (res?.data) {
+        setProductComments(res.data.data || []);
+        setFeedbackPagination(prev => ({
+          ...prev,
+          total: res.data.pagination?.total || 0,
+          total_pages: res.data.pagination?.total_pages || 0
+        }));
+      }
+    } catch (err) {
+      showToast("Không thể tải phản hồi sản phẩm", "error");
+    } finally {
+      setIsCommentsLoading(false);
+    }
+  }, [id, feedbackType, feedbackPagination.page, feedbackPagination.limit, showToast]);
+
+  useEffect(() => {
+    if (activeTab === "comments") fetchFeedback();
+  }, [activeTab, fetchFeedback]);
+
+  const toggleRow = async (parentId) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(parentId)) {
+      newExpanded.delete(parentId);
+    } else {
+      newExpanded.add(parentId);
+      if (!commentReplies[parentId]) {
+        try {
+          const res = await requestAPI({ method: "GET", url: `/comments/replies/${parentId}` });
+          setCommentReplies(prev => ({ ...prev, [parentId]: res?.data?.data || [] }));
+        } catch (err) {
+          showToast("Không thể tải phản hồi", "error");
+        }
+      }
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const handleToggleCommentStatus = async (commentId, field, value, parentId = null) => {
+    try {
+      const endpoint = feedbackType === "comment" ? `/comments/status/${commentId}` : `/reviews/status/${commentId}`;
+      const data = feedbackType === "comment" ? { [field]: value } : { is_visible: value };
+
+      await requestAPI({
+        method: "PUT",
+        url: endpoint,
+        data: data
+      });
+
+      if (parentId) {
+        setCommentReplies(prev => ({
+          ...prev,
+          [parentId]: prev[parentId].map(r => r.id === commentId ? { ...r, [field]: value } : r)
+        }));
+      } else {
+        setProductComments(prev => prev.map(c => c.id === commentId ? { ...c, [field]: value } : c));
+      }
+
+      showToast("Cập nhật trạng thái thành công");
+    } catch (err) {
+      showToast("Lỗi cập nhật: " + err.message, "error");
+    }
+  };
+
+  const handleDeleteComment = (commentId, parentId = null) => {
+    setDeleteModal({ isOpen: true, itemType: "comment", itemId: commentId, parentId, isDeleting: false });
+  };
+
+  const handleReplyComment = async () => {
+    if (!replyContent.trim()) return;
+    try {
+      setIsSaving(true);
+      await requestAPI({
+        method: "POST",
+        url: "/comments/reply",
+        data: {
+          product_id: id,
+          parent_id: replyTo,
+          content: replyContent
+        }
+      });
+      showToast("Đã gửi phản hồi");
+      
+      // Tải lại replies cho parent này
+      const res = await requestAPI({ method: "GET", url: `/comments/replies/${replyTo}` });
+      setCommentReplies(prev => ({ ...prev, [replyTo]: res?.data?.data || [] }));
+      
+      const newExpanded = new Set(expandedRows);
+      newExpanded.add(replyTo);
+      setExpandedRows(newExpanded);
+
+      setReplyTo(null);
+      setReplyContent("");
+      fetchFeedback(); // Cập nhật replies_count ở cha
+    } catch (err) {
+      showToast("Lỗi phản hồi: " + err.message, "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Validate duplicate name on blur (excluding current product)
   const checkDuplicateName = useCallback((name) => {
@@ -508,6 +631,25 @@ const EditProduct = () => {
         await requestAPI({ method: "DELETE", url: `/products/policies/${itemId}` });
         setPolicies(policies.filter(p => p.id !== itemId));
         showToast("Xóa chính sách thành công");
+      } else if (itemType === "comment") {
+        await requestAPI({ method: "DELETE", url: `/comments/delete/${itemId}` });
+        showToast("Xóa thành công");
+        const parentId = deleteModal.parentId;
+        if (parentId) {
+          setCommentReplies(prev => ({
+            ...prev,
+            [parentId]: (prev[parentId] || []).filter(r => r.id !== itemId)
+          }));
+          setProductComments(prev => prev.map(c => c.id === parentId ? { ...c, replies_count: Math.max(0, c.replies_count - 1)} : c));
+          
+          if ((commentReplies[parentId]?.length || 0) <= 1) {
+            const newExpanded = new Set(expandedRows);
+            newExpanded.delete(parentId);
+            setExpandedRows(newExpanded);
+          }
+        } else {
+          setProductComments(prev => prev.filter(c => c.id !== itemId));
+        }
       }
       setDeleteModal({ isOpen: false, itemType: null, itemId: null, isDeleting: false });
     } catch (err) {
@@ -533,11 +675,13 @@ const EditProduct = () => {
         title={
           deleteModal.itemType === "variant" ? "Xóa biến thể" :
           deleteModal.itemType === "spec" ? "Xóa thông số" :
+          deleteModal.itemType === "comment" ? "Xóa bình luận" :
           "Xóa chính sách"
         }
         message={
           deleteModal.itemType === "variant" ? "Bạn có chắc chắn muốn xóa biến thể này không? Hành động này không thể hoàn tác." :
           deleteModal.itemType === "spec" ? "Bạn có chắc chắn muốn xóa thông số này không?" :
+          deleteModal.itemType === "comment" ? "Hành động này sẽ xóa vĩnh viễn bình luận/phản hồi này. Bạn có chắc chắn không?" :
           "Bạn có chắc chắn muốn xóa chính sách này không?"
         }
         onConfirm={confirmDelete}
@@ -584,7 +728,29 @@ const EditProduct = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Tab Navigation */}
+        <div className="flex bg-white rounded-2xl p-1 shadow-soft border border-gray-50 mb-8 w-fit">
+          <button
+            type="button"
+            onClick={() => setActiveTab("general")}
+            className={`px-8 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === "general" ? "bg-brandOrange text-white shadow-lg shadow-orange-100" : "text-gray-400 hover:text-primary hover:bg-gray-50"}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            Thông tin chung
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("comments")}
+            className={`px-8 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeTab === "comments" ? "bg-brandOrange text-white shadow-lg shadow-orange-100" : "text-gray-400 hover:text-primary hover:bg-gray-50"}`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+            Bình luận
+            {productComments.length > 0 && <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] ${activeTab === "comments" ? "bg-white text-brandOrange" : "bg-gray-100 text-gray-400"}`}>{productComments.length}</span>}
+          </button>
+        </div>
+
+        {activeTab === "general" ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-fade-in">
           {/* Main Info */}
           <div className="lg:col-span-2 space-y-8">
             <div className="bg-white rounded-[32px] p-8 shadow-soft border border-gray-50 space-y-8">
@@ -944,8 +1110,218 @@ const EditProduct = () => {
                 Biến thể mới thêm cần nhấn nút ✓ (lưu) để lưu vào hệ thống. Thay đổi thông tin cơ bản chỉ cần nhấn "Lưu thay đổi" phía trên.
               </p>
             </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-[40px] p-8 shadow-soft border border-gray-50 flex flex-col gap-8 animate-slide-up">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-primary flex items-center gap-3">
+                  <span className="w-2 h-8 bg-brandOrange rounded-full"></span>
+                  Phản hồi khách hàng
+                </h2>
+                <p className="text-xs font-bold text-gray-400">Kiểm duyệt bình luận và đánh giá sản phẩm</p>
+              </div>
+
+              <div className="flex bg-gray-100/50 p-1.5 rounded-2xl border border-gray-100 self-start">
+                <button
+                  type="button"
+                  onClick={() => { setFeedbackType("comment"); setFeedbackPagination(p => ({ ...p, page: 1 })); }}
+                  className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all flex items-center gap-2 ${feedbackType === "comment" ? "bg-white text-brandOrange shadow-soft" : "text-gray-400 hover:text-primary"}`}
+                >
+                  Bình luận (Q&A)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setFeedbackType("review"); setFeedbackPagination(p => ({ ...p, page: 1 })); }}
+                  className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all flex items-center gap-2 ${feedbackType === "review" ? "bg-white text-brandOrange shadow-soft" : "text-gray-400 hover:text-primary"}`}
+                >
+                  Đánh giá (Reviews)
+                </button>
+              </div>
+            </div>
+
+            {isCommentsLoading ? (
+              <div className="py-20 text-center space-y-4">
+                <div className="w-12 h-12 border-4 border-brandOrange/20 border-t-brandOrange rounded-full animate-spin mx-auto"></div>
+                <p className="text-sm font-black text-gray-400">Đang tải dữ liệu...</p>
+              </div>
+            ) : productComments.length === 0 ? (
+              <div className="py-20 text-center bg-gray-50/50 rounded-[32px] border-2 border-dashed border-gray-100">
+                <p className="text-gray-400 font-bold italic">Chưa có {feedbackType === "comment" ? "bình luận" : "đánh giá"} nào cho sản phẩm này.</p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="space-y-6">
+                  {productComments.map((c) => (
+                    <div key={c.id} className="space-y-4">
+                      {/* Main Feedback item */}
+                      <div className={`p-6 rounded-[32px] transition-all border ${expandedRows.has(c.id) ? "bg-gray-50/30 border-brandOrange/10" : "bg-white border-gray-50 hover:border-brandOrange/20"}`}>
+                        <div className="flex items-start gap-5">
+                          <div className="w-12 h-12 rounded-2xl bg-brandOrange/10 text-brandOrange flex items-center justify-center font-black text-lg shrink-0">
+                            {c.user_name?.charAt(0).toUpperCase() || "U"}
+                          </div>
+                          <div className="flex-1 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-3">
+                                  <span className="font-black text-primary">{c.user_name || "Ẩn danh"}</span>
+                                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">{new Date(c.created_at).toLocaleDateString("vi-VN")}</span>
+                                </div>
+                                {feedbackType === "review" && (
+                                  <div className="flex items-center gap-0.5 text-yellow-400">
+                                    {[...Array(5)].map((_, i) => (
+                                      <svg key={i} className={`w-3.5 h-3.5 ${i < c.rating ? "fill-yellow-400" : "fill-gray-200"}`} viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                {feedbackType === "comment" && (
+                                  <button type="button" onClick={() => handleDeleteComment(c.id)} className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            <p className="text-sm text-secondary-text leading-relaxed font-bold">{c.content || c.comment}</p>
+                            
+                            <div className="flex flex-wrap items-center gap-6 pt-2">
+                              {feedbackType === "comment" && (
+                                <div className="flex items-center gap-3">
+                                  <label className="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked={c.is_approved === 1} onChange={() => handleToggleCommentStatus(c.id, "is_approved", c.is_approved === 1 ? 0 : 1)} className="sr-only peer" />
+                                    <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                                  </label>
+                                  <span className={`text-[10px] font-black uppercase tracking-wider ${c.is_approved === 1 ? "text-emerald-500" : "text-gray-300"}`}>{c.is_approved === 1 ? "Đã duyệt" : "Chờ duyệt"}</span>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-3">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input type="checkbox" checked={(feedbackType === "comment" ? c.id_visible : c.is_visible) === 1} onChange={() => handleToggleCommentStatus(c.id, feedbackType === "comment" ? "id_visible" : "is_visible", (feedbackType === "comment" ? c.id_visible : c.is_visible) === 1 ? 0 : 1)} className="sr-only peer" />
+                                  <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                </label>
+                                <span className={`text-[10px] font-black uppercase tracking-wider ${(feedbackType === "comment" ? c.id_visible : c.is_visible) === 1 ? "text-blue-500" : "text-gray-300"}`}>{(feedbackType === "comment" ? c.id_visible : c.is_visible) === 1 ? "Hiển thị" : "Bị ẩn"}</span>
+                              </div>
+
+                              {feedbackType === "comment" && c.replies_count > 0 && (
+                                <button type="button" onClick={() => toggleRow(c.id)} className="text-[10px] font-black text-brandOrange hover:underline flex items-center gap-1">
+                                  {expandedRows.has(c.id) ? "Đóng phản hồi" : `Xem ${c.replies_count} phản hồi`}
+                                  <svg className={`w-3 h-3 transition-transform ${expandedRows.has(c.id) ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Expanded Section (Replies + Reply Form) */}
+                      {expandedRows.has(c.id) && (
+                        <div className="ml-16 space-y-6 border-l-2 border-gray-100 pl-8 py-2 animate-slide-up">
+                          {/* Existing Replies List */}
+                          {commentReplies[c.id]?.length > 0 && (
+                            <div className="space-y-6">
+                              {commentReplies[c.id].map((reply) => (
+                                <div key={reply.id} className="flex flex-col gap-3 relative before:absolute before:w-6 before:h-[2px] before:bg-gray-100 before:-left-8 before:top-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-black text-primary uppercase">
+                                        {reply.user_name?.charAt(0) || "A"}
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-black text-primary">{reply.user_name || "Admin"}</span>
+                                          {reply.user_role === 1 && <span className="px-2 py-0.5 bg-blue-500 text-white text-[7px] font-black rounded-lg uppercase tracking-tighter">Admin</span>}
+                                        </div>
+                                        <span className="text-[9px] font-bold text-gray-400">{new Date(reply.created_at).toLocaleDateString("vi-VN")}</span>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-4">
+                                      <div className="flex items-center gap-3">
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                          <input type="checkbox" checked={reply.id_visible === 1} onChange={() => handleToggleCommentStatus(reply.id, "id_visible", reply.id_visible === 1 ? 0 : 1, c.id)} className="sr-only peer" />
+                                          <div className="w-10 h-5 bg-gray-200 rounded-full peer peer-checked:bg-blue-500"></div>
+                                        </label>
+                                        <span className={`text-[9px] font-black uppercase tracking-wider ${reply.id_visible === 1 ? "text-blue-500" : "text-gray-300"}`}>Hiển thị</span>
+                                      </div>
+                                      <button type="button" onClick={() => handleDeleteComment(reply.id, c.id)} className="w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="bg-white p-4 rounded-2xl border border-gray-100 text-xs text-secondary-text leading-relaxed font-bold">
+                                    {reply.content}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Trigger Reply Button or Form */}
+                          {replyTo !== c.id ? (
+                            <button
+                              type="button"
+                              onClick={() => setReplyTo(c.id)}
+                              className="text-[10px] font-black text-brandOrange hover:bg-orange-50 px-4 py-2 rounded-xl transition-all flex items-center gap-2 w-fit -ml-2"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                              Viết phản hồi...
+                            </button>
+                          ) : (
+                            <div className="p-6 bg-orange-50/30 border border-brandOrange/20 rounded-[32px] animate-slide-up space-y-4">
+                              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-brandOrange tracking-widest">
+                                <span className="w-1.5 h-1.5 rounded-full bg-brandOrange"></span>
+                                Phản hồi bình luận
+                              </div>
+                              <textarea
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                placeholder="Nhập nội dung phản hồi từ Admin..."
+                                className="w-full p-4 rounded-2xl border border-gray-100 bg-white text-sm focus:outline-none focus:ring-4 focus:ring-brandOrange/5 focus:border-brandOrange transition-all resize-none"
+                                rows="2"
+                              ></textarea>
+                              <div className="flex justify-end gap-3">
+                                <button type="button" onClick={() => { setReplyTo(null); setReplyContent(""); }} className="px-5 py-2 text-xs font-bold text-gray-400 hover:text-primary">Hủy</button>
+                                <button 
+                                  type="button" 
+                                  onClick={handleReplyComment}
+                                  disabled={!replyContent.trim() || isSaving}
+                                  className="px-6 py-2 bg-brandOrange text-white text-xs font-black rounded-xl hover:bg-orange-600 shadow-lg shadow-orange-100 disabled:opacity-50 transition-all flex items-center gap-2"
+                                >
+                                  {isSaving ? <div className="w-3 h-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : null}
+                                  Gửi phản hồi
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Feedback Pagination */}
+                {feedbackPagination.total_pages > 1 && (
+                  <div className="flex items-center justify-center gap-2 pt-6 border-t border-gray-50 font-sans">
+                    {Array.from({ length: feedbackPagination.total_pages }, (_, i) => i + 1).map(p => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setFeedbackPagination(prev => ({ ...prev, page: p }))}
+                        className={`w-10 h-10 rounded-xl text-sm font-black transition-all ${feedbackPagination.page === p ? "bg-brandOrange text-white shadow-lg shadow-orange-100" : "text-gray-400 hover:bg-gray-50 hover:text-primary"}`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </form>
     </div>
   );
