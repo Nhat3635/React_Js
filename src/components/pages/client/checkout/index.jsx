@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { jwtDecode } from "jwt-decode";
 import AddressSelector from "../../../ui/client/AddressSelector";
 import Toast from "../../../ui/common/Toast";
 import requestAPI from "../../../../api";
@@ -15,6 +16,19 @@ const Checkout = () => {
   const showToast = useCallback((message, type = "success") => {
     setToast({ show: true, message, type });
   }, []);
+
+  const isAdminAccount = (() => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return false;
+
+      const payload = jwtDecode(token);
+      const role = Number(payload?.role ?? payload?.data?.role);
+      return role === 1;
+    } catch {
+      return false;
+    }
+  })();
 
   const closeToast = useCallback(() => {
     setToast((prev) => ({ ...prev, show: false }));
@@ -49,6 +63,11 @@ const Checkout = () => {
   }, []);
 
   const handleCheckout = async (formData) => {
+    if (isAdminAccount) {
+      showToast("Tài khoản admin không thể đặt hàng.", "error");
+      return;
+    }
+
     setOrderConfirming(true);
 
     try {
@@ -420,17 +439,28 @@ const Checkout = () => {
               <button
                 type="submit"
                 form="checkoutForm"
-                disabled={!cart?.items || cart.items.length === 0 || orderConfirming}
+                disabled={
+                  isAdminAccount ||
+                  !cart?.items ||
+                  cart.items.length === 0 ||
+                  orderConfirming
+                }
                 className="w-full text-center bg-primary text-white py-4 rounded-xl font-bold hover:bg-orange-500 transition duration-300 shadow-md relative z-10 group overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="relative z-10">
-                  {orderConfirming ? "Đang xử lý..." : "Đặt hàng ngay"}
+                  {isAdminAccount
+                    ? "Tài khoản admin không thể đặt hàng"
+                    : orderConfirming
+                    ? "Đang xử lý..."
+                    : "Đặt hàng ngay"}
                 </span>
                 <div className="absolute inset-0 w-0 bg-orange-500 transition-all duration-300 ease-out group-hover:w-full z-0"></div>
               </button>
 
               <p className="text-xs text-center text-textMuted mt-4 max-w-[250px] mx-auto relative z-10">
-                {cart?.items && cart.items.length === 0 ? (
+                {isAdminAccount ? (
+                  <span className="text-red-500">Vui lòng đăng nhập bằng tài khoản khách hàng để đặt hàng</span>
+                ) : cart?.items && cart.items.length === 0 ? (
                   <span className="text-red-500">Vui lòng thêm sản phẩm vào giỏ hàng</span>
                 ) : (
                   "Bằng việc đặt hàng, bạn đồng ý với các Điều khoản & Chính sách của chúng tôi."
