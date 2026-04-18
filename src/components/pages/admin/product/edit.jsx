@@ -139,7 +139,9 @@ const EditProduct = () => {
           size_name,
           isNew: false,
           isDirty: false,
-          variantNameError: ""
+          variantNameError: "",
+          colorNameError: "",
+          sizeNameError: ""
         };
       }));
 
@@ -321,6 +323,58 @@ const EditProduct = () => {
     return updated[index].variantNameError;
   };
 
+  const checkColorName = (index, color) => {
+    const updated = [...variants];
+    const colorVal = (color || "").trim();
+    const sizeVal = (variants[index]?.size_name || "").trim();
+
+    if (!colorVal) {
+      updated[index].colorNameError = "Màu sắc không được trống";
+    } else if (colorVal && sizeVal) {
+      // Check duplicate (color + size)
+      const isDuplicate = variants.some((v, i) => 
+        i !== index && 
+        (v.color_name || "").trim().toLowerCase() === colorVal.toLowerCase() &&
+        (v.size_name || "").trim().toLowerCase() === sizeVal.toLowerCase()
+      );
+      if (isDuplicate) {
+        updated[index].colorNameError = `Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`;
+      } else {
+        updated[index].colorNameError = "";
+      }
+    } else {
+      updated[index].colorNameError = "";
+    }
+    setVariants(updated);
+    return updated[index].colorNameError;
+  };
+
+  const checkSizeName = (index, size) => {
+    const updated = [...variants];
+    const sizeVal = (size || "").trim();
+    const colorVal = (variants[index]?.color_name || "").trim();
+
+    if (!sizeVal) {
+      updated[index].sizeNameError = "Kích thước không được trống";
+    } else if (colorVal && sizeVal) {
+      // Check duplicate (color + size)
+      const isDuplicate = variants.some((v, i) => 
+        i !== index && 
+        (v.color_name || "").trim().toLowerCase() === colorVal.toLowerCase() &&
+        (v.size_name || "").trim().toLowerCase() === sizeVal.toLowerCase()
+      );
+      if (isDuplicate) {
+        updated[index].sizeNameError = `Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`;
+      } else {
+        updated[index].sizeNameError = "";
+      }
+    } else {
+      updated[index].sizeNameError = "";
+    }
+    setVariants(updated);
+    return updated[index].sizeNameError;
+  };
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -428,15 +482,51 @@ const EditProduct = () => {
   };
 
   const handleAddVariantRow = () => {
-    setVariants([...variants, { name: "", price: 0, variant_image: "", color_name: "", size_name: "", isNew: true, isDirty: false, variantNameError: "" }]);
+    setVariants([...variants, { name: "", price: 0, variant_image: "", color_name: "", size_name: "", isNew: true, isDirty: false, variantNameError: "", colorNameError: "", sizeNameError: "" }]);
   };
 
   const handleSaveNewVariant = async (index) => {
     const v = variants[index];
-    const errObj = checkVariantName(index, v.name);
-    if (errObj) {
-      showToast(errObj, "error");
+    const updated = [...variants];
+
+    // Validate variant name
+    const nameErr = checkVariantName(index, v.name);
+    if (nameErr) {
+      showToast(nameErr, "error");
       return;
+    }
+
+    // Validate color name
+    const colorVal = (v.color_name || "").trim();
+    if (!colorVal) {
+      updated[index].colorNameError = "Màu sắc không được trống";
+      setVariants(updated);
+      showToast("Màu sắc không được trống", "error");
+      return;
+    }
+
+    // Validate size name
+    const sizeVal = (v.size_name || "").trim();
+    if (!sizeVal) {
+      updated[index].sizeNameError = "Kích thước không được trống";
+      setVariants(updated);
+      showToast("Kích thước không được trống", "error");
+      return;
+    }
+
+    // Check duplicate color+size combination
+    if (colorVal && sizeVal) {
+      const isDuplicate = variants.some((ov, i) => 
+        i !== index && 
+        (ov.color_name || "").trim().toLowerCase() === colorVal.toLowerCase() &&
+        (ov.size_name || "").trim().toLowerCase() === sizeVal.toLowerCase()
+      );
+      if (isDuplicate) {
+        updated[index].colorNameError = `Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`;
+        setVariants(updated);
+        showToast(`Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`, "error");
+        return;
+      }
     }
 
     try {
@@ -456,7 +546,7 @@ const EditProduct = () => {
 
       showToast("Thêm biến thể thành công!");
       const updated = [...variants];
-      updated[index] = { ...v, id: response.data?.data?.id || response.data?.id, isNew: false, isDirty: false, variantNameError: "" };
+      updated[index] = { ...v, id: response.data?.data?.id || response.data?.id, isNew: false, isDirty: false, variantNameError: "", colorNameError: "", sizeNameError: "" };
       setVariants(updated);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || "";
@@ -474,10 +564,46 @@ const EditProduct = () => {
   const handleUpdateVariant = async (index) => {
     const v = variants[index];
     if (!v.id || v.isNew) return;
-    const errObj = checkVariantName(index, v.name);
-    if (errObj) {
-      showToast(errObj, "error");
+    const updated = [...variants];
+
+    // Validate variant name
+    const nameErr = checkVariantName(index, v.name);
+    if (nameErr) {
+      showToast(nameErr, "error");
       return;
+    }
+
+    // Validate color name
+    const colorVal = (v.color_name || "").trim();
+    if (!colorVal) {
+      updated[index].colorNameError = "Màu sắc không được trống";
+      setVariants(updated);
+      showToast("Màu sắc không được trống", "error");
+      return;
+    }
+
+    // Validate size name
+    const sizeVal = (v.size_name || "").trim();
+    if (!sizeVal) {
+      updated[index].sizeNameError = "Kích thước không được trống";
+      setVariants(updated);
+      showToast("Kích thước không được trống", "error");
+      return;
+    }
+
+    // Check duplicate color+size combination
+    if (colorVal && sizeVal) {
+      const isDuplicate = variants.some((ov, i) => 
+        i !== index && 
+        (ov.color_name || "").trim().toLowerCase() === colorVal.toLowerCase() &&
+        (ov.size_name || "").trim().toLowerCase() === sizeVal.toLowerCase()
+      );
+      if (isDuplicate) {
+        updated[index].colorNameError = `Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`;
+        setVariants(updated);
+        showToast(`Màu ${colorVal} + Kích thước ${sizeVal} đã tồn tại`, "error");
+        return;
+      }
     }
 
     try {
@@ -496,7 +622,7 @@ const EditProduct = () => {
 
       showToast("Cập nhật biến thể thành công!");
       const updated = [...variants];
-      updated[index] = { ...v, isDirty: false, variantNameError: "" };
+      updated[index] = { ...v, isDirty: false, variantNameError: "", colorNameError: "", sizeNameError: "" };
       setVariants(updated);
     } catch (err) {
       const errorMsg = err.response?.data?.message || err.message || "";
@@ -514,6 +640,7 @@ const EditProduct = () => {
   const handleVariantChange = (index, field, value) => {
     const updated = [...variants];
     updated[index][field] = value;
+    // Only clear name error on change (not color/size - will validate on blur)
     if (field === 'name') {
       updated[index].variantNameError = "";
     }
@@ -1017,9 +1144,11 @@ const EditProduct = () => {
                             list={`color-list-edit-${index}`}
                             value={v.color_name}
                             onChange={(e) => handleVariantChange(index, "color_name", e.target.value)}
+                            onBlur={(e) => checkColorName(index, e.target.value)}
                             placeholder="Nhập màu..."
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white"
+                            className={`w-full px-3 py-2.5 rounded-xl border outline-none text-xs font-bold bg-white ${v.colorNameError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-brandOrange'}`}
                           />
+                          {v.colorNameError && <p className="text-red-500 text-[10px] font-bold">{v.colorNameError}</p>}
                           <datalist id={`color-list-edit-${index}`}>
                             {colorValues.map((c) => <option key={c.id} value={c.value} />)}
                           </datalist>
@@ -1033,9 +1162,11 @@ const EditProduct = () => {
                             list={`size-list-edit-${index}`}
                             value={v.size_name}
                             onChange={(e) => handleVariantChange(index, "size_name", e.target.value)}
+                            onBlur={(e) => checkSizeName(index, e.target.value)}
                             placeholder="Nhập kích thước..."
-                            className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-brandOrange outline-none text-xs font-bold bg-white"
+                            className={`w-full px-3 py-2.5 rounded-xl border outline-none text-xs font-bold bg-white ${v.sizeNameError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-brandOrange'}`}
                           />
+                          {v.sizeNameError && <p className="text-red-500 text-[10px] font-bold">{v.sizeNameError}</p>}
                           <datalist id={`size-list-edit-${index}`}>
                             {sizeValues.map((s) => <option key={s.id} value={s.value} />)}
                           </datalist>
