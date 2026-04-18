@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import { jwtDecode } from "jwt-decode";
 import requestAPI from "../../../../api";
 import Toast from "../../../ui/common/Toast";
 
@@ -15,11 +16,33 @@ const EditUser = () => {
     type: "success",
   });
 
+  const currentUser = (() => {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const payload = jwtDecode(token);
+        return {
+          id:
+            payload?.id ??
+            payload?.userId ??
+            payload?.user_id ??
+            payload?.sub ??
+            null,
+        };
+      }
+
+      return JSON.parse(localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  const isSelfEditing = Number(currentUser?.id) === Number(id);
+
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
   } = useForm();
 
   useEffect(() => {
@@ -51,9 +74,16 @@ const EditUser = () => {
   }, [id, reset]);
 
   const onUpdateUser = async (data) => {
-    try {
-      console.log("Dữ liệu gửi lên:", { status: Number(data.status) });
+    if (isSelfEditing && Number(data.status) === 0) {
+      setToast({
+        show: true,
+        message: "Bạn không thể tự khóa tài khoản của chính mình!",
+        type: "error",
+      });
+      return;
+    }
 
+    try {
       await requestAPI({
         method: "PUT",
         url: `/users/${id}`,
@@ -70,7 +100,6 @@ const EditUser = () => {
 
       setTimeout(() => navigate("/admin/users"), 1500);
     } catch (err) {
-      console.error("Lỗi API:", err);
       setToast({
         show: true,
         message: err.response?.data?.message || "Cập nhật thất bại",
@@ -184,12 +213,20 @@ const EditUser = () => {
                 className="w-full px-5 py-3.5 rounded-xl border border-gray-100 bg-white focus:ring-2 focus:ring-green-500/20 outline-none text-sm font-bold text-primary"
               >
                 <option value={1}>Đang hoạt động (Kích hoạt)</option>
-                <option value={0}>Đã khóa (Tạm dừng)</option>
+                <option value={0} disabled={isSelfEditing}>
+                  Đã khóa (Tạm dừng)
+                </option>
               </select>
             </div>
-            <p className="text-[11px] text-gray-400 italic font-medium">
-              * Tài khoản bị khóa sẽ không thể đăng nhập vào hệ thống.
-            </p>
+            {isSelfEditing ? (
+              <p className="text-[11px] text-red-500 font-bold uppercase tracking-tight">
+                * Bạn đang đăng nhập bằng tài khoản này. Không thể tự khóa chính mình.
+              </p>
+            ) : (
+              <p className="text-[11px] text-gray-400 italic font-medium">
+                * Tài khoản bị khóa sẽ không thể đăng nhập vào hệ thống.
+              </p>
+            )}
           </div>
         </div>
 
