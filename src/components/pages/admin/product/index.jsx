@@ -38,7 +38,7 @@ const ProductManagement = () => {
 
       // Fetch products and categories in parallel
       const [productsRes, categoriesRes] = await Promise.all([
-        requestAPI({ method: "GET", url: "/admin/products/list?limit=1000" }),
+        requestAPI({ method: "GET", url: "/products/list?limit=1000" }),
         requestAPI({ method: "GET", url: "/categories/list" }),
       ]);
 

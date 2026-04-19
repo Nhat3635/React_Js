@@ -146,9 +146,9 @@ const Shop = () => {
       if (sortBy) params.set("sort", sortBy);
 
       const [productsRes, brandsRes, categoriesRes] = await Promise.all([
-        requestAPI({ method: "GET", url: `/products/list?${params}` }),
-        requestAPI({ method: "GET", url: "/brands/list" }),
-        requestAPI({ method: "GET", url: "/categories/list" }),
+        requestAPI({ method: "GET", url: `/products/list?status=1&${params}` }),
+        requestAPI({ method: "GET", url: "/brands/list?status=1" }),
+        requestAPI({ method: "GET", url: "/categories/list?status=1" }),
       ]);
 
       setProducts(normalizeProducts(productsRes?.data));
