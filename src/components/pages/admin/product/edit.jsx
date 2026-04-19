@@ -106,7 +106,7 @@ const EditProduct = () => {
         name: product.name,
         category_id: product.category_id,
         brand_id: product.brand_id,
-        base_price: product.base_price,
+        base_price: Math.floor(product.base_price),
         status: product.status,
         image: product.image,
         short_description: product.short_description || "",
@@ -133,7 +133,7 @@ const EditProduct = () => {
         return {
           id: v.id,
           name: v.name || "",
-          price: v.price || 0,
+          price: Math.floor(v.price) || 0,
           variant_image: v.variant_image || "",
           color_name,
           size_name,

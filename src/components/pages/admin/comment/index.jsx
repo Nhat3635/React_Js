@@ -36,18 +36,16 @@ const CommentManagement = () => {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      let statusParam = "";
-      if (activeTab === "pending") statusParam = "0";
-      if (activeTab === "approved") statusParam = "1";
-      if (activeTab === "hidden") statusParam = "0"; // logic cho visible = 0
+      let isVisibleParam = "";
+      if (activeTab === "visible") isVisibleParam = "1";
+      if (activeTab === "hidden") isVisibleParam = "0";
 
       const queryParams = new URLSearchParams({
         page: pagination.page,
         limit: pagination.limit,
         productId: filters.productId,
         rating: filters.rating,
-        status: statusParam,
-        isVisible: activeTab === "hidden" ? "0" : (activeTab === "all" ? "" : "1")
+        isVisible: isVisibleParam
       });
 
       const endpoint = managerType === "comment" ? "/comments/list" : "/reviews/list";
@@ -120,7 +118,6 @@ const CommentManagement = () => {
     try {
       setIsProcessing(true);
       const data = {};
-      if (action === "approve") data.is_approved = 1;
       if (action === "hide") data.id_visible = 0;
       if (action === "show") data.id_visible = 1;
 
@@ -308,10 +305,9 @@ const CommentManagement = () => {
             <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
               {[
                 { id: "all", label: "Tất cả" },
-                { id: "pending", label: "Chờ duyệt", hidden: managerType === "review" },
-                { id: "approved", label: "Đã duyệt", hidden: managerType === "review" },
-             
-              ].filter(t => !t.hidden).map((tab) => (
+                { id: "visible", label: "Hiển thị" },
+                { id: "hidden", label: "Đã ẩn" },
+              ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -348,7 +344,6 @@ const CommentManagement = () => {
             <div className="flex items-center justify-between bg-orange-50/50 p-4 rounded-2xl border border-brandOrange/10">
               <span className="text-xs font-bold text-brandOrange">Đã chọn {selectedIds.length} mục</span>
               <div className="flex items-center gap-2">
-                <button onClick={() => handleBulkAction("approve")} className="px-4 py-2 bg-brandOrange text-white text-[10px] font-bold rounded-lg hover:bg-orange-600">Duyệt</button>
                 <button onClick={() => handleBulkAction("hide")} className="px-4 py-2 bg-gray-600 text-white text-[10px] font-bold rounded-lg hover:bg-gray-700">Ẩn</button>
               </div>
             </div>
@@ -397,15 +392,6 @@ const CommentManagement = () => {
                           </td>
                       <td className="p-5">
                         <div className="flex flex-col gap-2 min-w-[120px]">
-                          {managerType === "comment" && (
-                            <div className="flex items-center gap-3">
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" checked={c.is_approved === 1} onChange={() => handleToggleStatus(c.id, "is_approved", c.is_approved === 1 ? 0 : 1)} className="sr-only peer" />
-                                <div className="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
-                              </label>
-                              <span className={`text-[10px] font-black uppercase tracking-wider ${c.is_approved === 1 ? "text-emerald-500" : "text-gray-300"}`}>{c.is_approved === 1 ? "Đã duyệt" : "Chờ duyệt"}</span>
-                            </div>
-                          )}
                           <div className="flex items-center gap-3">
                             <label className="relative inline-flex items-center cursor-pointer">
                               <input type="checkbox" checked={(managerType === "comment" ? c.id_visible : c.is_visible) === 1} onChange={() => handleToggleStatus(c.id, managerType === "comment" ? "id_visible" : "is_visible", (managerType === "comment" ? c.id_visible : c.is_visible) === 1 ? 0 : 1)} className="sr-only peer" />

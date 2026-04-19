@@ -22,7 +22,7 @@ const formatDate = (value) => {
 };
 
 const parseMoney = (value) =>
-  Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
+  Math.floor(Number(value ?? 0)) || 0;
 
 const avgRating = (items) =>
   items.length
@@ -263,13 +263,10 @@ const ProductDetail = () => {
 
   async function handleSubmitComment() {
     if (!commentForm.content.trim()) {
-      setCommentForm((prev) => ({
-        ...prev,
-        message: "Vui lòng nhập nội dung bình luận.",
-      }));
+      showToast("Vui lòng nhập nội dung bình luận.", "error");
       return;
     }
-    setCommentForm((prev) => ({ ...prev, isSubmitting: true, message: "" }));
+    setCommentForm((prev) => ({ ...prev, isSubmitting: true }));
     try {
       await requestAPI({
         method: "POST",
@@ -282,35 +279,33 @@ const ProductDetail = () => {
       });
       setCommentForm({
         content: "",
-        message: "Bình luận đã được gửi thành công",
+        message: "",
         isSubmitting: false,
       });
+      showToast("Bình luận đã được gửi thành công", "success");
       await loadProduct();
     } catch (err) {
       setCommentForm((prev) => ({
         ...prev,
         isSubmitting: false,
-        message: err?.message || "Gửi bình luận thất bại. Vui lòng thử lại.",
       }));
+      showToast(
+        err?.message || "Gửi bình luận thất bại. Vui lòng thử lại.",
+        "error"
+      );
     }
   }
 
   async function handleSubmitReview() {
     if (!reviewForm.content.trim()) {
-      setReviewForm((prev) => ({
-        ...prev,
-        message: "Vui lòng nhập nội dung đánh giá.",
-      }));
+      showToast("Vui lòng nhập nội dung đánh giá.", "error");
       return;
     }
     if (reviewForm.rating < 1 || reviewForm.rating > 5) {
-      setReviewForm((prev) => ({
-        ...prev,
-        message: "Vui lòng chọn số sao từ 1 đến 5.",
-      }));
+      showToast("Vui lòng chọn số sao từ 1 đến 5.", "error");
       return;
     }
-    setReviewForm((prev) => ({ ...prev, isSubmitting: true, message: "" }));
+    setReviewForm((prev) => ({ ...prev, isSubmitting: true }));
     try {
       await requestAPI({
         method: "POST",
@@ -324,16 +319,20 @@ const ProductDetail = () => {
       setReviewForm({
         content: "",
         rating: 5,
-        message: "Đánh giá đã được gửi.",
+        message: "",
         isSubmitting: false,
       });
+      showToast("Đánh giá đã được gửi.", "success");
       await loadProduct();
     } catch (err) {
       setReviewForm((prev) => ({
         ...prev,
         isSubmitting: false,
-        message: err?.response?.data?.message || "Gửi đánh giá thất bại.",
       }));
+      showToast(
+        err?.response?.data?.message || "Gửi đánh giá thất bại.",
+        "error"
+      );
     }
   }
 
@@ -822,11 +821,6 @@ const ProductDetail = () => {
                       }
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
                     />
-                    {reviewForm.message && (
-                      <p className="mt-3 text-sm text-textMuted">
-                        {reviewForm.message}
-                      </p>
-                    )}
                     <button
                       onClick={handleSubmitReview}
                       disabled={reviewForm.isSubmitting}
@@ -855,11 +849,6 @@ const ProductDetail = () => {
                     }
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
                   />
-                  {commentForm.message && (
-                    <p className="mt-3 text-sm text-textMuted">
-                      {commentForm.message}
-                    </p>
-                  )}
                   <button
                     onClick={handleSubmitComment}
                     disabled={commentForm.isSubmitting}

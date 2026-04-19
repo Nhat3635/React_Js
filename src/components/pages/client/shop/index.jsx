@@ -9,7 +9,7 @@ const formatPrice = (price) =>
   price ? `${price.toLocaleString("vi-VN")}đ` : "Liên hệ";
 
 const parseMoney = (value) =>
-  Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
+  Math.floor(Number(value ?? 0)) || 0;
 
 const toArray = (payload) =>
   Array.isArray(payload?.data)
