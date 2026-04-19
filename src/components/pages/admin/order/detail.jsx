@@ -153,12 +153,20 @@ const OrderDetail = () => {
       ? rawItems.map((item, index) => {
           const quantity = toNumeric(item?.quantity);
           const unitPrice = toNumeric(item?.price_at_purchase || item?.price);
+          const variantName =
+            item?.variant_name ||
+            item?.variantName ||
+            item?.product_variant_name ||
+            item?.variant?.name ||
+            item?.sku ||
+            "-";
 
           return {
             id:
               item?.id ??
               `${item?.order_id || nestedOrder?.id || "item"}-${index}`,
             name: item?.product_name || item?.name || `Sản phẩm ${index + 1}`,
+            variantName,
             sku: item?.sku || "-",
             quantity,
             price: unitPrice,
@@ -277,6 +285,8 @@ const OrderDetail = () => {
   const statusHint =
     displayedStatus === "Đã hủy"
       ? "Đơn hàng đã hủy nên không thể thay đổi trạng thái."
+      : displayedStatus === "Chờ xác nhận"
+        ? "Đơn hàng chờ xác nhận không thể chuyển về Đang xử lý."
       : displayedStatus === "Đang giao"
         ? "Đang giao không thể chuyển về Đang xử lý hoặc Chờ xác nhận."
         : "Có thể cập nhật trạng thái tùy theo trạng thái hiện tại.";
@@ -289,6 +299,9 @@ const OrderDetail = () => {
 
   const canChooseStatus = (targetStatus) => {
     if (!canEditStatus) return false;
+    if (displayedStatus === "Chờ xác nhận") {
+      return targetStatus !== "Đang xử lý";
+    }
     if (displayedStatus === "Đang giao") {
       return targetStatus !== "Đang xử lý" && targetStatus !== "Chờ xác nhận";
     }
@@ -488,9 +501,14 @@ const OrderDetail = () => {
                             <span className="font-bold text-primary">
                               {item.name}
                             </span>
-                            <span className="text-[11px] text-gray-400 uppercase font-medium">
-                              SKU: {item.sku}
+                            <span className="text-[11px] text-gray-400 font-medium">
+                              Biến thể: {item.variantName}
                             </span>
+                            {item.sku !== "-" && (
+                              <span className="text-[11px] text-gray-400 uppercase font-medium">
+                                SKU: {item.sku}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="p-4 text-gray-500">
