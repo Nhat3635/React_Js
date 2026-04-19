@@ -7,11 +7,9 @@ import "./style.css";
 const DEFAULT_IMAGE = "https://placehold.co/600x600?text=PRODUCT";
 const DEFAULT_AVATAR = "https://placehold.co/100x100?text=U";
 
-// Định dạng giá tiền sang kiểu Việt Nam
 const formatPrice = (value) =>
   `${Number(value || 0).toLocaleString("vi-VN")} đ`;
 
-// Định dạng ngày đánh giá
 const formatDate = (value) => {
   const date = value ? new Date(value) : new Date();
   return isNaN(date)
@@ -23,17 +21,14 @@ const formatDate = (value) => {
       }).format(date);
 };
 
-// Chuyển chuỗi tiền về số
 const parseMoney = (value) =>
   Number(String(value ?? 0).replace(/[^\d]/g, "")) || 0;
 
-// Tính sao trung bình từ danh sách đánh giá
 const avgRating = (items) =>
   items.length
     ? items.reduce((s, r) => s + Number(r?.rating || 0), 0) / items.length
     : 0;
 
-// Hiển thị sao đánh giá
 function StarRating({ rating }) {
   const stars = Array.from({ length: 5 }, (_, i) => (
     <i key={i} className="bi bi-star-fill" />
@@ -51,7 +46,6 @@ function StarRating({ rating }) {
   );
 }
 
-// Chuẩn hóa dữ liệu biến thể
 function normalizeVariant(v) {
   return {
     id: v?.id,
@@ -62,7 +56,6 @@ function normalizeVariant(v) {
   };
 }
 
-// Chuẩn hóa dữ liệu review
 function normalizeReview(r) {
   return {
     id: r?.id || Math.random().toString(36),
@@ -75,19 +68,16 @@ function normalizeReview(r) {
   };
 }
 
-function isVisibleApprovedComment(item) {
-  const hasModerationFields =
-    Object.prototype.hasOwnProperty.call(item || {}, "id_visible") ||
-    Object.prototype.hasOwnProperty.call(item || {}, "is_approved");
-
-  if (!hasModerationFields) {
-    return true;
-  }
-
-  return Number(item?.id_visible) === 1 && Number(item?.is_approved) === 1;
+function normalizeComment(c) {
+  return {
+    id: c?.id || Math.random().toString(36),
+    name: c?.username || c?.user_name || c?.name || "Khách hàng",
+    avatar: c?.avatar || DEFAULT_AVATAR,
+    date: formatDate(c?.created_at || c?.date),
+    content: c?.content || c?.comment || "",
+  };
 }
 
-// Chuẩn hóa dữ liệu chi tiết sản phẩm
 function normalizeProduct(p) {
   const variants = Array.isArray(p?.variants)
     ? p.variants.map(normalizeVariant)
@@ -98,11 +88,6 @@ function normalizeProduct(p) {
     p?.image || DEFAULT_IMAGE,
   ].filter(Boolean);
   const gallery = [...new Set(galleryRaw)];
-  const comments = Array.isArray(p?.comments)
-    ? p.comments
-        .filter((item) => isVisibleApprovedComment(item))
-        .map(normalizeReview)
-    : [];
   const firstVariant = variants[0] || null;
 
   return {
@@ -112,7 +97,6 @@ function normalizeProduct(p) {
       price: firstVariant ? firstVariant.price : parseMoney(p?.base_price),
       oldPrice: 0,
       description: p?.short_description || "Chưa cập nhật",
-      rating: Number(p?.rating_avg ?? avgRating(comments) ?? 0),
     },
     images: {
       main: gallery[0] || DEFAULT_IMAGE,
@@ -136,17 +120,30 @@ function normalizeProduct(p) {
         : [],
     },
     variants,
-    comments,
     firstVariantId: firstVariant ? String(firstVariant.id) : "",
+    comments: Array.isArray(p?.comments)
+      ? p.comments
+          .filter(
+            (c) =>
+              Number(c?.is_approved) === 1 &&
+              Number(c?.id_visible ?? c?.is_visible ?? 0) === 1,
+          )
+          .map(normalizeComment)
+      : [],
+    reviews: Array.isArray(p?.reviews)
+      ? p.reviews
+          .filter((r) => Number(r?.id_visible ?? r?.is_visible ?? 0) === 1)
+          .map(normalizeReview)
+      : [],
   };
 }
 
-// Lấy sản phẩm cùng danh mục
 function buildRelated(current, list) {
   if (!Array.isArray(list)) return [];
   return list
-    .filter((p) => Number(p?.status) === 1)
-    .filter((p) => String(p?.id) !== String(current?.id))
+    .filter(
+      (p) => Number(p?.status) === 1 && String(p?.id) !== String(current?.id),
+    )
     .filter(
       (p) =>
         String(p?.category_name || "") === String(current?.category_name || ""),
@@ -169,17 +166,21 @@ const TABS = [
   { key: "shipping", label: "Chính sách giao hàng" },
 ];
 
+const FEEDBACK_TABS = [
+  { key: "comments", label: "Bình luận" },
+  { key: "reviews", label: "Đánh giá" },
+];
+
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [info, setInfo] = useState({
-    name: "Ghế Sofa Cao Cấp Minimalist",
-    category: "Phòng Khách",
-    price: 899000,
+    name: "",
+    category: "",
+    price: 0,
     oldPrice: 0,
-    description: "Chưa cập nhật",
-    rating: 5,
+    description: "",
   });
   const [images, setImages] = useState({
     main: DEFAULT_IMAGE,
@@ -194,12 +195,15 @@ const ProductDetail = () => {
   const [related, setRelated] = useState([]);
   const [variantId, setVariantId] = useState("");
   const [activeTab, setActiveTab] = useState("desc");
-  const [comments, setComments] = useState({
-    items: [],
-    showAll: false,
-  });
-  const [hasPurchased, setHasPurchased] = useState(false);
+  const [activeFeedbackTab, setActiveFeedbackTab] = useState("comments");
+  const [comments, setComments] = useState({ items: [], showAll: false });
+  const [reviews, setReviews] = useState({ items: [], showAll: false });
   const [commentForm, setCommentForm] = useState({
+    content: "",
+    message: "",
+    isSubmitting: false,
+  });
+  const [reviewForm, setReviewForm] = useState({
     content: "",
     rating: 5,
     message: "",
@@ -214,20 +218,20 @@ const ProductDetail = () => {
     type: "success",
   });
 
-  // Hiển thị thông báo ngắn
   const showToast = (message, type = "success") =>
     setToast({ show: true, message, type });
-
   const selectedVariant = variants.find(
     (v) => String(v.id) === String(variantId),
   );
   const currentPrice = selectedVariant ? selectedVariant.price : info.price;
-  const computedRating = avgRating(comments.items);
-  const displayedReviews = comments.showAll
+  const computedRating = avgRating(reviews.items);
+  const displayedComments = comments.showAll
     ? comments.items
     : comments.items.slice(0, 3);
+  const displayedReviews = reviews.showAll
+    ? reviews.items
+    : reviews.items.slice(0, 3);
 
-  // Đổi biến thể và cập nhật ảnh chính
   function handleVariantChange(e) {
     const next = variants.find((v) => String(v.id) === String(e.target.value));
     setVariantId(e.target.value);
@@ -237,23 +241,27 @@ const ProductDetail = () => {
     }));
   }
 
-  function handleCommentChange(event) {
-    setCommentForm((prev) => ({ ...prev, content: event.target.value }));
+  function handleGalleryImageClick(event) {
+    const image = event.currentTarget.dataset.image;
+    if (image) setImages((prev) => ({ ...prev, main: image }));
   }
 
-  function handleCommentRatingChange(rating) {
-    setCommentForm((prev) => ({ ...prev, rating }));
+  function handleProductTabClick(event) {
+    const key = event.currentTarget.dataset.tabKey;
+    if (key) setActiveTab(key);
+  }
+
+  function handleFeedbackTabClick(event) {
+    const key = event.currentTarget.dataset.tabKey;
+    if (key) setActiveFeedbackTab(key);
+  }
+
+  function handleReviewRatingChange(event) {
+    const next = Number(event.currentTarget.dataset.rating || 5);
+    setReviewForm((prev) => ({ ...prev, rating: next }));
   }
 
   async function handleSubmitComment() {
-    if (!id) {
-      setCommentForm((prev) => ({
-        ...prev,
-        message: "Không tìm thấy sản phẩm.",
-      }));
-      return;
-    }
-
     if (!commentForm.content.trim()) {
       setCommentForm((prev) => ({
         ...prev,
@@ -261,15 +269,6 @@ const ProductDetail = () => {
       }));
       return;
     }
-
-    if (Number(commentForm.rating) < 1 || Number(commentForm.rating) > 5) {
-      setCommentForm((prev) => ({
-        ...prev,
-        message: "Vui lòng chọn số sao từ 1 đến 5.",
-      }));
-      return;
-    }
-
     setCommentForm((prev) => ({ ...prev, isSubmitting: true, message: "" }));
     try {
       await requestAPI({
@@ -279,16 +278,14 @@ const ProductDetail = () => {
           product_id: parseInt(id),
           parent_id: null,
           content: commentForm.content.trim(),
-          rating: Number(commentForm.rating),
         },
       });
-
       setCommentForm({
         content: "",
-        rating: 4,
-        message: "Bình luận đã được gửi.",
+        message: "Bình luận đã được gửi thành công",
         isSubmitting: false,
       });
+      await loadProduct();
     } catch (err) {
       setCommentForm((prev) => ({
         ...prev,
@@ -298,9 +295,49 @@ const ProductDetail = () => {
     }
   }
 
-  // Thêm vào giỏ hàng
+  async function handleSubmitReview() {
+    if (!reviewForm.content.trim()) {
+      setReviewForm((prev) => ({
+        ...prev,
+        message: "Vui lòng nhập nội dung đánh giá.",
+      }));
+      return;
+    }
+    if (reviewForm.rating < 1 || reviewForm.rating > 5) {
+      setReviewForm((prev) => ({
+        ...prev,
+        message: "Vui lòng chọn số sao từ 1 đến 5.",
+      }));
+      return;
+    }
+    setReviewForm((prev) => ({ ...prev, isSubmitting: true, message: "" }));
+    try {
+      await requestAPI({
+        method: "POST",
+        url: "/reviews/add",
+        data: {
+          product_id: parseInt(id),
+          rating: reviewForm.rating,
+          comment: reviewForm.content.trim(),
+        },
+      });
+      setReviewForm({
+        content: "",
+        rating: 5,
+        message: "Đánh giá đã được gửi.",
+        isSubmitting: false,
+      });
+      await loadProduct();
+    } catch (err) {
+      setReviewForm((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        message: err?.response?.data?.message || "Gửi đánh giá thất bại.",
+      }));
+    }
+  }
+
   async function handleAddToCart() {
-    // Nếu sản phẩm có variant thì bắt chọn variant
     if (variants.length > 0 && !variantId) {
       showToast("Vui lòng chọn đầy đủ thuộc tính sản phẩm", "error");
       return;
@@ -313,7 +350,7 @@ const ProductDetail = () => {
         data: {
           product_id: parseInt(id),
           variant_id: variantId ? parseInt(variantId) : null,
-          quantity: quantity,
+          quantity,
           unit_price: parseFloat(currentPrice),
           variant_name: selectedVariant?.name || "",
           variant_image:
@@ -333,13 +370,12 @@ const ProductDetail = () => {
     }
   }
 
-  // Tải dữ liệu sản phẩm + dữ liệu liên quan
   async function loadProduct() {
     setLoading({ active: true, error: "" });
     try {
       const [detailRes, listRes] = await Promise.all([
         requestAPI({ method: "GET", url: `/products/${id}` }),
-        requestAPI({ method: "GET", url: "/products/list" }),
+        requestAPI({ method: "GET", url: "/products/list?status=1" }),
       ]);
 
       const status = detailRes?.status || detailRes?.data?.status;
@@ -375,21 +411,8 @@ const ProductDetail = () => {
           Array.isArray(listRes?.data?.data) ? listRes.data.data : [],
         ),
       );
-      setComments({
-        items: normalized.comments,
-        showAll: false,
-      });
-
-      try {
-        const purchasedResponse = await requestAPI({
-          method: "POST",
-          url: "/products/check-purchased",
-          data: { product_id: Number(id) },
-        });
-        setHasPurchased(Boolean(purchasedResponse?.data?.data?.hasPurchased));
-      } catch (purchaseError) {
-        setHasPurchased(false);
-      }
+      setComments({ items: normalized.comments, showAll: false });
+      setReviews({ items: normalized.reviews, showAll: false });
     } catch (err) {
       if (Number(err?.response?.status) === 404)
         return navigate("/404", {
@@ -405,7 +428,6 @@ const ProductDetail = () => {
     }
   }
 
-  // Tải dữ liệu khi mở trang
   useEffect(() => {
     if (!id)
       return navigate("/404", {
@@ -421,7 +443,7 @@ const ProductDetail = () => {
         show={toast.show}
         message={toast.message}
         type={toast.type}
-        onClose={() => setToast((p) => ({ ...p, show: false }))}
+        onClose={() => setToast((prev) => ({ ...prev, show: false }))}
       />
       <main className="mt-20 max-w-7xl mx-auto px-6 py-10 md:px-12 w-full flex-grow">
         {/* Breadcrumb */}
@@ -467,7 +489,8 @@ const ProductDetail = () => {
               {images.gallery.map((img, i) => (
                 <button
                   key={i}
-                  onClick={() => setImages((prev) => ({ ...prev, main: img }))}
+                  data-image={img}
+                  onClick={handleGalleryImageClick}
                   className={`w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border-2 shrink-0 transition duration-300 ${images.main === img ? "border-orange-500 opacity-100" : "border-transparent opacity-60 hover:opacity-100"}`}
                 >
                   <img
@@ -489,11 +512,11 @@ const ProductDetail = () => {
               {info.name}
             </h1>
 
-            {comments.items.length > 0 && (
+            {reviews.items.length > 0 && (
               <div className="flex items-center gap-4 mb-6">
                 <StarRating rating={computedRating} />
                 <span className="text-sm text-textMuted font-medium underline cursor-pointer">
-                  ({comments.items.length} đánh giá)
+                  ({reviews.items.length} đánh giá)
                 </span>
               </div>
             )}
@@ -528,7 +551,7 @@ const ProductDetail = () => {
                       </option>
                     ))}
                   </select>
-                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-orange-500 transition-colors">
+                  <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
                     <svg
                       className="w-4 h-4"
                       fill="none"
@@ -550,7 +573,7 @@ const ProductDetail = () => {
             <div className="flex flex-col sm:flex-row gap-4 mb-10 items-stretch sm:items-center">
               <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-white">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
                   className="px-4 py-3 text-primary hover:bg-gray-100 transition font-bold text-lg"
                 >
                   −
@@ -559,11 +582,13 @@ const ProductDetail = () => {
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  onChange={(e) =>
+                    setQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
                   className="w-16 text-center py-3 border-x border-gray-300 focus:outline-none font-bold"
                 />
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() => setQuantity((prev) => prev + 1)}
                   className="px-4 py-3 text-primary hover:bg-gray-100 transition font-bold text-lg"
                 >
                   +
@@ -612,7 +637,6 @@ const ProductDetail = () => {
                 )}
                 {isAddingToCart ? "Đang xử lý..." : "Thêm vào giỏ hàng"}
               </button>
-
               <button className="w-14 h-14 border-2 border-gray-200 rounded-xl flex items-center justify-center text-textMuted hover:text-red-500 hover:border-red-500 hover:bg-red-50 transition shrink-0">
                 <svg
                   className="w-6 h-6"
@@ -673,7 +697,8 @@ const ProductDetail = () => {
             {TABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                data-tab-key={tab.key}
+                onClick={handleProductTabClick}
                 className={`font-bold pb-4 px-2 whitespace-nowrap transition cursor-pointer border-b-2 ${activeTab === tab.key ? "text-orange-500 border-orange-500" : "text-textMuted hover:text-primary border-transparent"}`}
               >
                 {tab.label}
@@ -690,7 +715,6 @@ const ProductDetail = () => {
               )}
             </div>
           )}
-
           {activeTab === "specs" && (
             <div className="text-textMuted leading-relaxed">
               {tabs.specifications.length > 0 ? (
@@ -718,7 +742,6 @@ const ProductDetail = () => {
               )}
             </div>
           )}
-
           {activeTab === "shipping" && (
             <div className="text-textMuted leading-relaxed space-y-4">
               {tabs.shippingPolicy.length > 0 ? (
@@ -739,45 +762,97 @@ const ProductDetail = () => {
           )}
         </div>
 
-        {/* Comments */}
+        {/* Comments & Reviews */}
         <h2 className="text-2xl md:text-3xl font-bold text-primary mb-8 tracking-tight">
-          Đánh giá
+          Bình luận và đánh giá
         </h2>
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-8 md:p-10 mb-16">
+          <nav className="flex gap-3 border-b border-gray-100 pb-4 mb-8 overflow-x-auto">
+            {FEEDBACK_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                data-tab-key={tab.key}
+                onClick={handleFeedbackTabClick}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeFeedbackTab === tab.key ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-textMuted hover:text-primary"}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
             <div className="lg:col-span-1">
-              <div className="flex items-end gap-4 mb-3">
-                <div className="text-5xl font-bold text-primary leading-none">
-                  {computedRating.toFixed(1)}
-                </div>
-                <StarRating rating={computedRating} />
-              </div>
-              <p className="text-sm text-textMuted">
-                {comments.items.length} đánh giá
-              </p>
+              {activeFeedbackTab === "reviews" && (
+                <>
+                  <div className="flex items-end gap-4 mb-3">
+                    <div className="text-5xl font-bold text-primary leading-none">
+                      {computedRating.toFixed(1)}
+                    </div>
+                    <StarRating rating={computedRating} />
+                  </div>
+                  <p className="text-sm text-textMuted">
+                    {reviews.items.length} đánh giá
+                  </p>
+                  <div className="mt-8 rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                    <h3 className="text-lg font-bold text-primary mb-3 tracking-tight">
+                      Viết đánh giá
+                    </h3>
+                    <div className="flex items-center gap-1 mb-4">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          data-rating={star}
+                          onClick={handleReviewRatingChange}
+                          className={`text-xl transition ${star <= reviewForm.rating ? "text-yellow-400" : "text-gray-300"}`}
+                        >
+                          <i className="bi bi-star-fill" />
+                        </button>
+                      ))}
+                    </div>
+                    <textarea
+                      placeholder="Chia sẻ cảm nhận của bạn..."
+                      rows="3"
+                      value={reviewForm.content}
+                      onChange={(e) =>
+                        setReviewForm((prev) => ({
+                          ...prev,
+                          content: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
+                    />
+                    {reviewForm.message && (
+                      <p className="mt-3 text-sm text-textMuted">
+                        {reviewForm.message}
+                      </p>
+                    )}
+                    <button
+                      onClick={handleSubmitReview}
+                      disabled={reviewForm.isSubmitting}
+                      className="mt-4 bg-primary text-white py-3 rounded-xl font-bold text-sm hover:bg-black transition duration-300 w-full"
+                    >
+                      {reviewForm.isSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+                    </button>
+                  </div>
+                </>
+              )}
 
-              {hasPurchased && (
-                <div className="mt-8 rounded-2xl border border-gray-100 bg-gray-50 p-5">
+              {activeFeedbackTab === "comments" && (
+                <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-5">
                   <h3 className="text-lg font-bold text-primary mb-3 tracking-tight">
                     Viết bình luận
                   </h3>
-                  <div className="flex items-center gap-1 mb-4">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => handleCommentRatingChange(star)}
-                        className={`text-xl transition ${star <= commentForm.rating ? "text-yellow-400" : "text-gray-300"}`}
-                      >
-                        <i className="bi bi-star-fill" />
-                      </button>
-                    ))}
-                  </div>
                   <textarea
-                    placeholder="Chia sẻ cảm nhận của bạn..."
+                    placeholder="Chia sẻ nội dung bình luận..."
                     rows="3"
                     value={commentForm.content}
-                    onChange={handleCommentChange}
+                    onChange={(e) =>
+                      setCommentForm((prev) => ({
+                        ...prev,
+                        content: e.target.value,
+                      }))
+                    }
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 bg-white transition text-sm resize-none"
                   />
                   {commentForm.message && (
@@ -794,15 +869,56 @@ const ProductDetail = () => {
                   </button>
                 </div>
               )}
-
-              {!hasPurchased && (
-                <p className="mt-8 text-sm text-textMuted">
-                  Chỉ khách đã mua sản phẩm mới có thể bình luận.
-                </p>
-              )}
             </div>
 
-            {comments.items.length > 0 && (
+            {activeFeedbackTab === "comments" && comments.items.length > 0 && (
+              <div className="lg:col-span-2 flex flex-col gap-4">
+                {displayedComments.map((comment) => (
+                  <div
+                    key={comment.id}
+                    className="rounded-2xl border border-gray-100 p-5"
+                  >
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={comment.avatar}
+                        alt={comment.name}
+                        className="w-12 h-12 rounded-full object-cover shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                          <h4 className="font-bold text-primary text-base truncate">
+                            {comment.name}
+                          </h4>
+                          <span className="text-xs text-gray-400">
+                            {comment.date}
+                          </span>
+                        </div>
+                        <p className="text-sm text-textMuted leading-relaxed">
+                          {comment.content}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {comments.items.length > 3 && (
+                  <button
+                    onClick={() =>
+                      setComments((prev) => ({
+                        ...prev,
+                        showAll: !prev.showAll,
+                      }))
+                    }
+                    className="self-center mt-2 px-5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-primary hover:text-orange-500 hover:border-orange-300 transition"
+                  >
+                    {comments.showAll
+                      ? "Thu gọn"
+                      : `Xem tất cả ${comments.items.length} bình luận`}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {activeFeedbackTab === "reviews" && reviews.items.length > 0 && (
               <div className="lg:col-span-2 flex flex-col gap-4">
                 {displayedReviews.map((review) => (
                   <div
@@ -839,25 +955,19 @@ const ProductDetail = () => {
                     </div>
                   </div>
                 ))}
-
-                {!comments.showAll && comments.items.length > 3 && (
+                {reviews.items.length > 3 && (
                   <button
                     onClick={() =>
-                      setComments((prev) => ({ ...prev, showAll: true }))
+                      setReviews((prev) => ({
+                        ...prev,
+                        showAll: !prev.showAll,
+                      }))
                     }
                     className="self-center mt-2 px-5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-primary hover:text-orange-500 hover:border-orange-300 transition"
                   >
-                    Xem tất cả {comments.items.length} bình luận
-                  </button>
-                )}
-                {comments.showAll && comments.items.length > 3 && (
-                  <button
-                    onClick={() =>
-                      setComments((prev) => ({ ...prev, showAll: false }))
-                    }
-                    className="self-center mt-2 px-5 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-primary hover:text-orange-500 hover:border-orange-300 transition"
-                  >
-                    Thu gọn
+                    {reviews.showAll
+                      ? "Thu gọn"
+                      : `Xem tất cả ${reviews.items.length} đánh giá`}
                   </button>
                 )}
               </div>
