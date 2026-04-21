@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
+import ClassicEditor from "@ckeditor/ckeditor5-build-classic";
+import { CKEditor } from "@ckeditor/ckeditor5-react";
 import requestAPI from "../../../../api";
 import { uploadImageToServer } from "../../../../api/upload";
 import Toast from "../../../ui/common/Toast";
@@ -38,6 +40,7 @@ const EditProduct = () => {
   const [commentReplies, setCommentReplies] = useState({});
   const [replyTo, setReplyTo] = useState(null); // ID of comment being replied to
   const [replyContent, setReplyContent] = useState("");
+  const [detailContent, setDetailContent] = useState(""); // CKEditor state
 
   const {
     register,
@@ -113,6 +116,7 @@ const EditProduct = () => {
         detail_content: product.detail_content || "",
       });
 
+      setDetailContent(product.detail_content || ""); // Set CKEditor state
       setImagePreview(product.image);
 
       setSpecs(product.specs || []);
@@ -383,6 +387,13 @@ const EditProduct = () => {
     try {
       setIsSaving(true);
 
+      // Validate detail_content from CKEditor
+      if (!detailContent || detailContent.trim().length < 20) {
+        showToast("Nội dung chi tiết phải ít nhất 20 ký tự", "error");
+        setIsSaving(false);
+        return;
+      }
+
       // Re-check duplicate (safety net)
       const isDuplicate = allProducts.some(p =>
         p.name.toLowerCase().trim() === data.name.toLowerCase().trim() && p.id.toString() !== id.toString()
@@ -407,7 +418,7 @@ const EditProduct = () => {
         image: data.image || null,
         status: Number(data.status),
         short_description: data.short_description,
-        detail_content: data.detail_content,
+        detail_content: detailContent, // Use CKEditor state instead of form data
       };
 
       await requestAPI({
@@ -967,12 +978,33 @@ const EditProduct = () => {
 
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-widest pl-1">Nội dung chi tiết </label>
-                  <textarea
-                    {...register("detail_content", { required: "Nội dung chi tiết không được để trống", minLength: { value: 20, message: "Nội dung chi tiết phải ít nhất 20 ký tự" } })}
-                    placeholder="Nhập nội dung chi tiết sản phẩm (tối thiểu 20 ký tự)..."
-                    rows={4}
-                    className={`w-full px-5 py-4 rounded-2xl border bg-white focus:outline-none focus:ring-4 focus:ring-brandOrange/5 transition text-sm font-medium text-primary resize-none ${errors.detail_content ? "border-red-400 focus:border-red-400" : "border-gray-100 focus:border-brandOrange"}`}
-                  ></textarea>
+                  <div className="bg-white rounded-2xl border border-gray-100 focus-within:border-brandOrange focus-within:ring-4 focus-within:ring-brandOrange/5 transition overflow-hidden">
+                    <CKEditor
+                      editor={ClassicEditor}
+                      data={detailContent}
+                      onChange={(event, editor) => {
+                        const data = editor.getData();
+                        setDetailContent(data);
+                        setValue("detail_content", data); // Update form value
+                      }}
+                      config={{
+                        toolbar: [
+                          "heading",
+                          "|",
+                          "bold",
+                          "italic",
+                          "link",
+                          "bulletedList",
+                          "numberedList",
+                          "|",
+                          "blockQuote",
+                          "undo",
+                          "redo",
+                        ],
+                        placeholder: "Nhập nội dung chi tiết sản phẩm (tối thiểu 20 ký tự)...",
+                      }}
+                    />
+                  </div>
                   {errors.detail_content && <small className="text-red-500 text-xs font-bold pl-1">{errors.detail_content.message}</small>}
                 </div>
               </div>

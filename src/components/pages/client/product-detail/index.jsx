@@ -105,10 +105,7 @@ function normalizeProduct(p) {
     tabs: {
       descriptions: p?.detail_content
         ? String(p.detail_content)
-            .split("\n")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
+        : "",
       specifications: Array.isArray(p?.specs)
         ? p.specs.map((s) => ({
             label: s?.spec_name || "Thông số",
@@ -707,8 +704,11 @@ const ProductDetail = () => {
 
           {activeTab === "desc" && (
             <div className="text-textMuted leading-relaxed space-y-4">
-              {tabs.descriptions.length > 0 ? (
-                tabs.descriptions.map((line, i) => <p key={i}>{line}</p>)
+              {tabs.descriptions ? (
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: tabs.descriptions }}
+                />
               ) : (
                 <p>Chưa cập nhật</p>
               )}

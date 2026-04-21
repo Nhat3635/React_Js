@@ -22,3 +22,78 @@
   color: gold;
   z-index: 2;
 }
+
+/* CKEditor Content Styles */
+.prose {
+  word-break: break-word;
+}
+
+.prose p {
+  margin: 1rem 0;
+  line-height: 1.6;
+  color: #333;
+}
+
+.prose strong,
+.prose b {
+  font-weight: 700;
+  color: #000;
+}
+
+.prose em,
+.prose i {
+  font-style: italic;
+}
+
+.prose a {
+  color: #ff6b35;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.prose a:hover {
+  color: #ff8555;
+}
+
+.prose ul,
+.prose ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.prose li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.prose blockquote {
+  border-left: 4px solid #ff6b35;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: #666;
+  font-style: italic;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-weight: 700;
+  color: #000;
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.prose h1 {
+  font-size: 1.875rem;
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+}
+
+.prose h3 {
+  font-size: 1.25rem;
+}

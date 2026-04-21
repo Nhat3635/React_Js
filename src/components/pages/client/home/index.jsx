@@ -23,9 +23,10 @@ const normalizeHomeProducts = (payload) => {
       name: item.name ?? "Sản phẩm không tên",
       category_id: item.category_id,
       category_name: item.category_name ?? "Nội thất",
-      image: item.image
-        ? `http://localhost:3000/uploads/products/${item.image}`
-        : "https://placehold.co/600x600?text=NO+IMAGE",
+      image:
+        item.featured_image ??
+        item.image ??
+        "https://placehold.co/600x600?text=NO+IMAGE",
       price: Number(priceValue) || 0,
       rating: Number(item.rating ?? 0),
       status: item.status,
