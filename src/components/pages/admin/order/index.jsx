@@ -14,13 +14,22 @@ const OrderManagement = () => {
   const normalizeStatus = (status) => {
     const normalized = String(status || "").toLowerCase();
 
-    if (normalized === "processing" || normalized === "đang xử lý") {
-      return "Đang xử lý";
+    if (
+      normalized === "processing" ||
+      normalized === "đang xử lý" ||
+      normalized === "chờ vận chuyển" ||
+      normalized === "cho van chuyen"
+    ) {
+      return "Chờ vận chuyển";
     }
     if (normalized === "shipped" || normalized === "đang giao") {
       return "Đang giao";
     }
-    if (normalized === "delivered" || normalized === "hoàn thành") {
+    if (
+      normalized === "delivered" ||
+      normalized === "hoàn thành" ||
+      normalized === "thành công"
+    ) {
       return "Hoàn thành";
     }
     if (normalized === "pending" || normalized === "chờ thanh toán") {
@@ -39,6 +48,8 @@ const OrderManagement = () => {
         return "bg-orange-50 text-orange-600 border-orange-100";
       case "Hoàn thành":
         return "bg-green-50 text-green-600 border-green-100";
+      case "Chờ vận chuyển":
+        return "bg-orange-50 text-orange-600 border-orange-100";
       case "Đang giao":
         return "bg-blue-50 text-blue-600 border-blue-100";
       case "Chờ xác nhận":
@@ -181,7 +192,7 @@ const OrderManagement = () => {
             className="bg-white border border-gray-100 text-gray-500 text-sm rounded-xl focus:ring-2 focus:ring-brandOrange/20 focus:border-brandOrange block p-2.5 shadow-soft outline-none"
           >
             <option value="all">Tất cả trạng thái</option>
-            <option value="Đang xử lý">Đang xử lý</option>
+            <option value="Chờ vận chuyển">Chờ vận chuyển</option>
             <option value="Đang giao">Đang giao</option>
             <option value="Hoàn thành">Hoàn thành</option>
             <option value="Chờ xác nhận">Chờ xác nhận</option>
