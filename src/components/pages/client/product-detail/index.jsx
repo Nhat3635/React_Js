@@ -71,10 +71,13 @@ function normalizeReview(r) {
 function normalizeComment(c) {
   return {
     id: c?.id || Math.random().toString(36),
+    parent_id: c?.parent_id || null,
     name: c?.username || c?.user_name || c?.name || "Khách hàng",
     avatar: c?.avatar || DEFAULT_AVATAR,
     date: formatDate(c?.created_at || c?.date),
     content: c?.content || c?.comment || "",
+    user_role: c?.user_role || 0, // 1 = admin, 0 = user
+    replies: Array.isArray(c?.replies) ? c.replies.map(normalizeComment) : [], // Preserve and normalize replies
   };
 }
 
@@ -222,9 +225,47 @@ const ProductDetail = () => {
   );
   const currentPrice = selectedVariant ? selectedVariant.price : info.price;
   const computedRating = avgRating(reviews.items);
+
+  // Organize comments into parent comments with nested replies
+  const organizeComments = (items) => {
+    if (!Array.isArray(items)) return [];
+    
+    // Se os comentários já vêm com replies do backend, use-os diretamente
+    // Se não, organize manualmente
+    const hasRepliesFromBackend = items.some((c) => Array.isArray(c?.replies));
+    
+    if (hasRepliesFromBackend) {
+      // Backend já retorna organizado
+      return items.filter((c) => !c.parent_id); // Apenas comentários de nível superior
+    }
+    
+    // Fallback: organizar manualmente se receber array plano
+    const parents = [];
+    const repliesMap = {};
+
+    // Separate parent comments and replies
+    items.forEach((comment) => {
+      if (!comment.parent_id) {
+        parents.push({ ...comment, replies: [] });
+        repliesMap[comment.id] = parents.length - 1;
+      }
+    });
+
+    // Attach replies to their parent comments
+    items.forEach((comment) => {
+      if (comment.parent_id && repliesMap.hasOwnProperty(comment.parent_id)) {
+        const parentIndex = repliesMap[comment.parent_id];
+        parents[parentIndex].replies.push(comment);
+      }
+    });
+
+    return parents;
+  };
+
+  const organizedComments = organizeComments(comments.items);
   const displayedComments = comments.showAll
-    ? comments.items
-    : comments.items.slice(0, 3);
+    ? organizedComments
+    : organizedComments.slice(0, 3);
   const displayedReviews = reviews.showAll
     ? reviews.items
     : reviews.items.slice(0, 3);
@@ -863,33 +904,73 @@ const ProductDetail = () => {
             {activeFeedbackTab === "comments" && comments.items.length > 0 && (
               <div className="lg:col-span-2 flex flex-col gap-4">
                 {displayedComments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="rounded-2xl border border-gray-100 p-5"
-                  >
-                    <div className="flex items-start gap-4">
-                      <img
-                        src={comment.avatar}
-                        alt={comment.name}
-                        className="w-12 h-12 rounded-full object-cover shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                          <h4 className="font-bold text-primary text-base truncate">
-                            {comment.name}
-                          </h4>
-                          <span className="text-xs text-gray-400">
-                            {comment.date}
-                          </span>
+                  <div key={comment.id} className="flex flex-col gap-4">
+                    {/* Parent Comment */}
+                    <div className="rounded-2xl border border-gray-100 p-5">
+                      <div className="flex items-start gap-4">
+                        <img
+                          src={comment.avatar}
+                          alt={comment.name}
+                          className="w-12 h-12 rounded-full object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                            <h4 className="font-bold text-primary text-base truncate">
+                              {comment.name}
+                            </h4>
+                            <span className="text-xs text-gray-400">
+                              {comment.date}
+                            </span>
+                          </div>
+                          <p className="text-sm text-textMuted leading-relaxed">
+                            {comment.content}
+                          </p>
                         </div>
-                        <p className="text-sm text-textMuted leading-relaxed">
-                          {comment.content}
-                        </p>
                       </div>
                     </div>
+
+                    {/* Replies */}
+                    {comment.replies && comment.replies.length > 0 && (
+                      <div className="ml-8 flex flex-col gap-3 border-l-2 border-gray-200 pl-4">
+                        {comment.replies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="rounded-2xl border border-orange-100 bg-orange-50/30 p-4"
+                          >
+                            <div className="flex items-start gap-4">
+                              <img
+                                src={reply.avatar}
+                                alt={reply.name}
+                                className="w-10 h-10 rounded-full object-cover shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-bold text-primary text-sm truncate">
+                                      {reply.name}
+                                    </h4>
+                                    {reply.user_role === 1 && (
+                                      <span className="px-2 py-0.5 bg-blue-500 text-white text-[10px] font-black rounded-lg uppercase tracking-tighter">
+                                        Admin
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-gray-400">
+                                    {reply.date}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-textMuted leading-relaxed">
+                                  {reply.content}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
-                {comments.items.length > 3 && (
+                {organizedComments.length > 3 && (
                   <button
                     onClick={() =>
                       setComments((prev) => ({
@@ -901,7 +982,7 @@ const ProductDetail = () => {
                   >
                     {comments.showAll
                       ? "Thu gọn"
-                      : `Xem tất cả ${comments.items.length} bình luận`}
+                      : `Xem tất cả ${organizedComments.length} bình luận`}
                   </button>
                 )}
               </div>
