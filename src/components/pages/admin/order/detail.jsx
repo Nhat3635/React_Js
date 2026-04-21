@@ -28,11 +28,20 @@ const OrderDetail = () => {
   const normalizeStatus = (status) => {
     const normalized = String(status || "").toLowerCase();
 
-    if (normalized === "processing" || normalized === "đang xử lý")
-      return "Đang xử lý";
+    if (
+      normalized === "processing" ||
+      normalized === "đang xử lý" ||
+      normalized === "chờ vận chuyển" ||
+      normalized === "cho van chuyen"
+    )
+      return "Chờ vận chuyển";
     if (normalized === "shipped" || normalized === "đang giao")
       return "Đang giao";
-    if (normalized === "delivered" || normalized === "hoàn thành")
+    if (
+      normalized === "delivered" ||
+      normalized === "hoàn thành" ||
+      normalized === "thành công"
+    )
       return "Hoàn thành";
     if (
       normalized === "cancelled" ||
@@ -54,7 +63,7 @@ const OrderDetail = () => {
 
   const getStatusStyle = (status) => {
     switch (status) {
-      case "Đang xử lý":
+      case "Chờ vận chuyển":
         return "bg-orange-50 text-orange-600 border-orange-100";
       case "Đang giao":
         return "bg-blue-50 text-blue-600 border-blue-100";
@@ -70,8 +79,8 @@ const OrderDetail = () => {
   };
 
   const statusOptions = [
-    "Đang xử lý",
     "Chờ xác nhận",
+    "Chờ vận chuyển",
     "Đang giao",
     "Hoàn thành",
     "Đã hủy",
@@ -79,7 +88,7 @@ const OrderDetail = () => {
 
   const toApiStatus = (status) => {
     switch (status) {
-      case "Đang xử lý":
+      case "Chờ vận chuyển":
         return "Processing";
       case "Chờ xác nhận":
         return "Pending";
@@ -250,7 +259,7 @@ const OrderDetail = () => {
 
         const normalized = normalizeOrder(data);
         setOrderData(normalized);
-        setSelectedStatus(normalized.status || "Đang xử lý");
+        setSelectedStatus(normalized.status || "Chờ xác nhận");
       } catch (err) {
         const message = String(err?.message || "");
         const isNotFoundError =
@@ -280,15 +289,25 @@ const OrderDetail = () => {
   const order = orderData;
   const displayedStatus = order?.status || "Không xác định";
   const itemCount = Array.isArray(order?.items) ? order.items.length : 0;
-  const canEditStatus =
-    displayedStatus !== "Hoàn thành" && displayedStatus !== "Đã hủy";
+  const statusTransitions = {
+    "Chờ xác nhận": ["Chờ vận chuyển", "Đã hủy"],
+    "Chờ vận chuyển": ["Đang giao", "Đã hủy"],
+    "Đang giao": ["Hoàn thành"],
+    "Hoàn thành": [],
+    "Đã hủy": [],
+  };
+  const canEditStatus = (statusTransitions[displayedStatus] || []).length > 0;
   const statusHint =
     displayedStatus === "Đã hủy"
       ? "Đơn hàng đã hủy nên không thể thay đổi trạng thái."
+      : displayedStatus === "Hoàn thành"
+        ? "Đơn hàng đã hoàn thành nên không thể thay đổi trạng thái."
       : displayedStatus === "Chờ xác nhận"
-        ? "Đơn hàng chờ xác nhận không thể chuyển về Đang xử lý."
+        ? "Có thể chuyển sang Chờ vận chuyển hoặc Đã hủy."
+      : displayedStatus === "Chờ vận chuyển"
+        ? "Có thể chuyển sang Đang giao hoặc Đã hủy."
       : displayedStatus === "Đang giao"
-        ? "Đang giao không thể chuyển về Đang xử lý hoặc Chờ xác nhận."
+        ? "Đang giao chỉ có thể chuyển sang Hoàn thành, không thể hủy đơn."
         : "Có thể cập nhật trạng thái tùy theo trạng thái hiện tại.";
 
   React.useEffect(() => {
@@ -299,14 +318,8 @@ const OrderDetail = () => {
 
   const canChooseStatus = (targetStatus) => {
     if (!canEditStatus) return false;
-    if (displayedStatus === "Chờ xác nhận") {
-      return targetStatus !== "Đang xử lý";
-    }
-    if (displayedStatus === "Đang giao") {
-      return targetStatus !== "Đang xử lý" && targetStatus !== "Chờ xác nhận";
-    }
-
-    return true;
+    const allowedTargets = statusTransitions[displayedStatus] || [];
+    return targetStatus === displayedStatus || allowedTargets.includes(targetStatus);
   };
 
   const handleSaveStatus = async () => {
